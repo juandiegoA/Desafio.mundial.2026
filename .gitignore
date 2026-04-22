@@ -1,0 +1,6 @@
+build/
+.qtcreator/
+*.exe
+*.o
+*.pro.user
+*.stash
