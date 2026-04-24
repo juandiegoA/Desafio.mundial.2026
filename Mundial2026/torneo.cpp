@@ -25,15 +25,14 @@ void Torneo::cargarEquiposCSV(const std::string& archivoCSV) {
 
     std::string linea;
 
-    // Saltar primera línea: título
     std::getline(archivo, linea);
-
-    // Saltar segunda línea: encabezados
     std::getline(archivo, linea);
 
     uint8_t id = 0;
 
     while (std::getline(archivo, linea)) {
+        medidor.sumar();
+
         if (linea.empty()) {
             continue;
         }
@@ -73,6 +72,7 @@ void Torneo::cargarEquiposCSV(const std::string& archivoCSV) {
 
 void Torneo::generarJugadoresIniciales() {
     for (auto& equipo : equipos) {
+        medidor.sumar();
         equipo.generarJugadoresArtificiales();
     }
 }
@@ -89,6 +89,8 @@ void Torneo::crearBombos() {
     bool anfitrionEncontrado = false;
 
     for (const auto& e : equipos) {
+        medidor.sumar();
+
         if (e.getPais() == "United States") {
             bombo1.push_back(e.getId());
             anfitrionEncontrado = true;
@@ -108,18 +110,22 @@ void Torneo::crearBombos() {
     int idx = 0;
 
     while (bombo1.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        medidor.sumar();
         bombo1.push_back(idsResto[idx++]);
     }
 
     while (bombo2.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        medidor.sumar();
         bombo2.push_back(idsResto[idx++]);
     }
 
     while (bombo3.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        medidor.sumar();
         bombo3.push_back(idsResto[idx++]);
     }
 
     while (bombo4.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        medidor.sumar();
         bombo4.push_back(idsResto[idx++]);
     }
 }
@@ -152,9 +158,9 @@ void Torneo::conformarGrupos() {
     std::vector<uint8_t> ordenAsignacion;
     ordenAsignacion.reserve(48);
 
-    // Primero todos los del bombo 1, luego todos los del 2, etc.
     for (int b = 0; b < 4; ++b) {
         for (uint8_t idEquipo : bombos[b]) {
+            medidor.sumar();
             ordenAsignacion.push_back(idEquipo);
         }
     }
@@ -166,17 +172,11 @@ void Torneo::conformarGrupos() {
 
         uint8_t idEquipo = ordenAsignacion[indice];
         const Equipo& equipoActual = equipos[idEquipo];
-
-        // Qué "ronda" de llenado vamos
-        // 0 -> primer equipo de cada grupo (bombo 1)
-        // 1 -> segundo equipo de cada grupo (bombo 2)
-        // 2 -> tercero (bombo 3)
-        // 3 -> cuarto (bombo 4)
         int ronda = static_cast<int>(indice / 12);
 
         for (int g = 0; g < 12; ++g) {
-            // Solo se puede agregar a grupos que estén exactamente
-            // en la ronda actual
+            medidor.sumar();
+
             if (grupos[g].getCantidadEquipos() != ronda) {
                 continue;
             }
@@ -202,6 +202,7 @@ void Torneo::conformarGrupos() {
 
 void Torneo::imprimirGrupos() const {
     for (const auto& grupo : grupos) {
+        std::cout << "Grupo " << grupo.getLetra() << ":\n";
         grupo.imprimirGrupo(equipos);
         std::cout << '\n';
     }
@@ -209,13 +210,17 @@ void Torneo::imprimirGrupos() const {
 
 void Torneo::generarCalendarioGrupos() {
     for (auto& grupo : grupos) {
+        medidor.sumar();
         grupo.generarPartidos();
     }
 }
 
 void Torneo::simularFaseGrupos() {
     for (auto& grupo : grupos) {
+        medidor.sumar();
+
         for (auto& partido : grupo.getPartidos()) {
+            medidor.sumar();
             partido.simular(equipos, generador, true);
         }
     }
@@ -295,6 +300,7 @@ void Torneo::generarR16() {
     int n = 0;
 
     for (size_t i = 0; i < primeros.size() && i < terceros.size(); ++i) {
+        medidor.sumar();
         Partido p;
         p.configurar(f, 0, 0, arbitros, Etapa::R16, primeros[i], terceros[i]);
         partidosR16.push_back(p);
@@ -303,6 +309,7 @@ void Torneo::generarR16() {
     }
 
     for (size_t i = 0; i + 1 < segundos.size() && n < 16; i += 2) {
+        medidor.sumar();
         Partido p;
         p.configurar(f, 0, 0, arbitros, Etapa::R16, segundos[i], segundos[i + 1]);
         partidosR16.push_back(p);
@@ -312,6 +319,7 @@ void Torneo::generarR16() {
 
 void Torneo::simularR16() {
     for (auto& p : partidosR16) {
+        medidor.sumar();
         p.simular(equipos, generador, false);
     }
 }
@@ -339,6 +347,18 @@ void Torneo::medirEstadoSistema(const std::string& nombreFase) const {
               << " | Iteraciones: " << medidor.obtenerIteraciones()
               << " | Memoria estimada: " << medidor.estimarMemoriaTorneo(*this)
               << " bytes\n";
+}
+
+void Torneo::reiniciarIteraciones() {
+    medidor.reiniciar();
+}
+
+void Torneo::sumarIteraciones(uint64_t cantidad) {
+    medidor.sumar(cantidad);
+}
+
+uint64_t Torneo::obtenerIteraciones() const {
+    return medidor.obtenerIteraciones();
 }
 
 const std::vector<Equipo>& Torneo::getEquipos() const {

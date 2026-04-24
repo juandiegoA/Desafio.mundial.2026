@@ -35,6 +35,7 @@ size_t MedidorRecursos::estimarMemoriaEquipo(const Equipo& equipo) const {
     for (const auto& j : equipo.getJugadores()) {
         total += estimarMemoriaJugador(j);
     }
+
     return total;
 }
 
@@ -50,8 +51,14 @@ size_t MedidorRecursos::estimarMemoriaGrupo(const Grupo& grupo) const {
 
 size_t MedidorRecursos::estimarMemoriaTorneo(const Torneo& torneo) const {
     size_t total = sizeof(Torneo);
+
     for (const auto& equipo : torneo.getEquipos()) {
         total += estimarMemoriaEquipo(equipo);
     }
+
+    for (const auto& grupo : torneo.getGrupos()) {
+        total += estimarMemoriaGrupo(grupo);
+    }
+
     return total;
 }

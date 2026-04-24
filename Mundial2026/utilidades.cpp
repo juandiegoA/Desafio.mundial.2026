@@ -1,5 +1,7 @@
 #include "Utilidades.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <sstream>
 
@@ -25,13 +27,31 @@ std::vector<std::string> dividirCSV(const std::string& linea) {
     return partes;
 }
 
-Confederacion convertirConfederacion(const std::string& texto) {
+std::string limpiarTexto(std::string texto) {
+    texto.erase(texto.begin(),
+                std::find_if(texto.begin(), texto.end(),
+                             [](unsigned char ch) { return !std::isspace(ch); }));
+
+    texto.erase(std::find_if(texto.rbegin(), texto.rend(),
+                             [](unsigned char ch) { return !std::isspace(ch); }).base(),
+                texto.end());
+
+    std::transform(texto.begin(), texto.end(), texto.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+    return texto;
+}
+
+Confederacion convertirConfederacion(const std::string& textoOriginal) {
+    std::string texto = limpiarTexto(textoOriginal);
+
     if (texto == "UEFA") return Confederacion::UEFA;
     if (texto == "CONMEBOL") return Confederacion::CONMEBOL;
     if (texto == "CONCACAF") return Confederacion::CONCACAF;
     if (texto == "CAF") return Confederacion::CAF;
     if (texto == "AFC") return Confederacion::AFC;
     if (texto == "OFC") return Confederacion::OFC;
+
     return Confederacion::DESCONOCIDA;
 }
 
@@ -62,7 +82,8 @@ std::string etapaATexto(Etapa e) {
 
 std::string fechaATexto(const Fecha& fecha) {
     std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << static_cast<int>(fecha.dia) << "/"
+    oss << std::setfill('0')
+        << std::setw(2) << static_cast<int>(fecha.dia) << "/"
         << std::setw(2) << static_cast<int>(fecha.mes) << "/"
         << fecha.anio;
     return oss.str();
@@ -78,11 +99,13 @@ Fecha sumarDias(const Fecha& fecha, int dias) {
     int total = diasDesdeReferencia(fecha) + dias;
 
     Fecha nueva{};
-    nueva.anio = total / 365;
+    nueva.anio = static_cast<uint16_t>(total / 365);
     total %= 365;
-    nueva.mes = total / 30;
+
+    nueva.mes = static_cast<uint8_t>(total / 30);
     total %= 30;
-    nueva.dia = total;
+
+    nueva.dia = static_cast<uint8_t>(total);
 
     if (nueva.dia == 0) nueva.dia = 1;
     if (nueva.mes == 0) nueva.mes = 1;

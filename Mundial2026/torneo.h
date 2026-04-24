@@ -58,6 +58,10 @@ public:
     void generarReporteFinal() const;
     void medirEstadoSistema(const std::string& nombreFase) const;
 
+    void reiniciarIteraciones();
+    void sumarIteraciones(uint64_t cantidad = 1);
+    uint64_t obtenerIteraciones() const;
+
     const std::vector<Equipo>& getEquipos() const;
     const std::array<Grupo, 12>& getGrupos() const;
 };
