@@ -5,8 +5,30 @@
 #include <functional>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 #include "Utilidades.h"
+
+namespace {
+
+struct EquipoClasificado {
+    uint8_t equipoId;
+    char grupo;
+    uint8_t posicion;   // 1, 2 o 3
+    uint8_t puntos;
+    int16_t diferenciaGoles;
+    uint8_t golesFavor;
+    uint32_t boletoSorteo;
+};
+
+bool mejorClasificado(const EquipoClasificado& a, const EquipoClasificado& b) {
+    if (a.puntos != b.puntos) return a.puntos > b.puntos;
+    if (a.diferenciaGoles != b.diferenciaGoles) return a.diferenciaGoles > b.diferenciaGoles;
+    if (a.golesFavor != b.golesFavor) return a.golesFavor > b.golesFavor;
+    return a.boletoSorteo < b.boletoSorteo;
+}
+
+} // namespace
 
 Torneo::Torneo() : generador(std::random_device{}()) {
     for (int i = 0; i < 12; ++i) {
@@ -202,7 +224,6 @@ void Torneo::conformarGrupos() {
 
 void Torneo::imprimirGrupos() const {
     for (const auto& grupo : grupos) {
-        std::cout << "Grupo " << grupo.getLetra() << ":\n";
         grupo.imprimirGrupo(equipos);
         std::cout << '\n';
     }
@@ -290,30 +311,196 @@ std::vector<uint8_t> Torneo::obtenerMejoresTerceros() const {
 void Torneo::generarR16() {
     partidosR16.clear();
 
-    auto primeros = obtenerPrimeros();
-    auto segundos = obtenerSegundos();
-    auto terceros = obtenerMejoresTerceros();
+    auto tablas = construirTablasGrupos();
 
-    std::array<uint16_t, 3> arbitros{1, 2, 3};
-    Fecha f{10, 7, 2026};
+    std::vector<EquipoClasificado> primeros;
+    std::vector<EquipoClasificado> segundos;
+    std::vector<EquipoClasificado> terceros;
 
-    int n = 0;
+    primeros.reserve(12);
+    segundos.reserve(12);
+    terceros.reserve(12);
 
-    for (size_t i = 0; i < primeros.size() && i < terceros.size(); ++i) {
-        medidor.sumar();
-        Partido p;
-        p.configurar(f, 0, 0, arbitros, Etapa::R16, primeros[i], terceros[i]);
-        partidosR16.push_back(p);
-        ++n;
-        if (n == 8) break;
+    for (int i = 0; i < 12; ++i) {
+        char letraGrupo = static_cast<char>('A' + i);
+
+        const auto& t1 = tablas[i][0];
+        const auto& t2 = tablas[i][1];
+        const auto& t3 = tablas[i][2];
+
+        primeros.push_back({
+            t1.equipoId, letraGrupo, 1, t1.puntos, t1.diferenciaGoles, t1.golesFavor,
+            static_cast<uint32_t>(Utilidades::randomInt(1, 1000000, generador))
+        });
+
+        segundos.push_back({
+            t2.equipoId, letraGrupo, 2, t2.puntos, t2.diferenciaGoles, t2.golesFavor,
+            static_cast<uint32_t>(Utilidades::randomInt(1, 1000000, generador))
+        });
+
+        terceros.push_back({
+            t3.equipoId, letraGrupo, 3, t3.puntos, t3.diferenciaGoles, t3.golesFavor,
+            static_cast<uint32_t>(Utilidades::randomInt(1, 1000000, generador))
+        });
     }
 
-    for (size_t i = 0; i + 1 < segundos.size() && n < 16; i += 2) {
-        medidor.sumar();
+    std::sort(primeros.begin(), primeros.end(), mejorClasificado);
+    std::sort(segundos.begin(), segundos.end(), mejorClasificado);
+    std::sort(terceros.begin(), terceros.end(), mejorClasificado);
+
+    terceros.resize(8);
+
+    std::vector<EquipoClasificado> cabezasVsTerceros(primeros.begin(), primeros.begin() + 8);
+    std::vector<EquipoClasificado> cabezasVsPeoresSegundos(primeros.begin() + 8, primeros.end());
+
+    std::vector<EquipoClasificado> segundosRestantes(segundos.begin(), segundos.begin() + 8);
+    std::vector<EquipoClasificado> peoresSegundos(segundos.begin() + 8, segundos.end());
+
+    std::vector<std::pair<EquipoClasificado, EquipoClasificado>> cruces1;
+    std::vector<std::pair<EquipoClasificado, EquipoClasificado>> cruces2;
+    std::vector<std::pair<EquipoClasificado, EquipoClasificado>> cruces3;
+
+    std::vector<bool> usadoTerceros(terceros.size(), false);
+    std::function<bool(size_t)> asignarCabezasConTerceros = [&](size_t idx) -> bool {
+        if (idx == cabezasVsTerceros.size()) {
+            return true;
+        }
+
+        for (size_t j = 0; j < terceros.size(); ++j) {
+            medidor.sumar();
+
+            if (usadoTerceros[j]) continue;
+            if (cabezasVsTerceros[idx].grupo == terceros[j].grupo) continue;
+
+            usadoTerceros[j] = true;
+            cruces1.push_back({cabezasVsTerceros[idx], terceros[j]});
+
+            if (asignarCabezasConTerceros(idx + 1)) {
+                return true;
+            }
+
+            cruces1.pop_back();
+            usadoTerceros[j] = false;
+        }
+
+        return false;
+    };
+
+    if (!asignarCabezasConTerceros(0)) {
+        throw std::runtime_error("No fue posible asignar cabezas de grupo contra terceros clasificados.");
+    }
+
+    std::vector<bool> usadoPeoresSegundos(peoresSegundos.size(), false);
+    std::function<bool(size_t)> asignarCabezasConPeoresSegundos = [&](size_t idx) -> bool {
+        if (idx == cabezasVsPeoresSegundos.size()) {
+            return true;
+        }
+
+        for (size_t j = 0; j < peoresSegundos.size(); ++j) {
+            medidor.sumar();
+
+            if (usadoPeoresSegundos[j]) continue;
+            if (cabezasVsPeoresSegundos[idx].grupo == peoresSegundos[j].grupo) continue;
+
+            usadoPeoresSegundos[j] = true;
+            cruces2.push_back({cabezasVsPeoresSegundos[idx], peoresSegundos[j]});
+
+            if (asignarCabezasConPeoresSegundos(idx + 1)) {
+                return true;
+            }
+
+            cruces2.pop_back();
+            usadoPeoresSegundos[j] = false;
+        }
+
+        return false;
+    };
+
+    if (!asignarCabezasConPeoresSegundos(0)) {
+        throw std::runtime_error("No fue posible asignar cabezas de grupo contra los peores segundos.");
+    }
+
+    std::vector<bool> usadoSegundos(segundosRestantes.size(), false);
+    std::function<bool()> emparejarSegundos = [&]() -> bool {
+        int primeroLibre = -1;
+
+        for (size_t i = 0; i < segundosRestantes.size(); ++i) {
+            medidor.sumar();
+            if (!usadoSegundos[i]) {
+                primeroLibre = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (primeroLibre == -1) {
+            return true;
+        }
+
+        usadoSegundos[primeroLibre] = true;
+
+        for (size_t j = primeroLibre + 1; j < segundosRestantes.size(); ++j) {
+            medidor.sumar();
+
+            if (usadoSegundos[j]) continue;
+            if (segundosRestantes[primeroLibre].grupo == segundosRestantes[j].grupo) continue;
+
+            usadoSegundos[j] = true;
+            cruces3.push_back({segundosRestantes[primeroLibre], segundosRestantes[j]});
+
+            if (emparejarSegundos()) {
+                return true;
+            }
+
+            cruces3.pop_back();
+            usadoSegundos[j] = false;
+        }
+
+        usadoSegundos[primeroLibre] = false;
+        return false;
+    };
+
+    if (!emparejarSegundos()) {
+        throw std::runtime_error("No fue posible emparejar los segundos puestos restantes.");
+    }
+
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+    Fecha fechaR16{10, 7, 2026};
+
+    auto agregarCruce = [&](const EquipoClasificado& a, const EquipoClasificado& b) {
         Partido p;
-        p.configurar(f, 0, 0, arbitros, Etapa::R16, segundos[i], segundos[i + 1]);
+        p.configurar(fechaR16, 0, 0, arbitros, Etapa::R16, a.equipoId, b.equipoId);
         partidosR16.push_back(p);
-        ++n;
+    };
+
+    for (const auto& par : cruces1) {
+        medidor.sumar();
+        agregarCruce(par.first, par.second);
+    }
+
+    for (const auto& par : cruces2) {
+        medidor.sumar();
+        agregarCruce(par.first, par.second);
+    }
+
+    for (const auto& par : cruces3) {
+        medidor.sumar();
+        agregarCruce(par.first, par.second);
+    }
+}
+
+void Torneo::imprimirR16() const {
+    std::cout << "===== PARTIDOS CONFIGURADOS PARA R16 =====\n";
+
+    for (size_t i = 0; i < partidosR16.size(); ++i) {
+        const Partido& p = partidosR16[i];
+
+        std::cout << "R16-" << i + 1 << ": "
+                  << equipos[p.getEquipo1Id()].getPais()
+                  << " vs "
+                  << equipos[p.getEquipo2Id()].getPais()
+                  << " | Fecha: " << Utilidades::fechaATexto(p.getFecha())
+                  << " | Hora: 00:00"
+                  << " | Sede: nombreSede\n";
     }
 }
 
@@ -322,6 +509,302 @@ void Torneo::simularR16() {
         medidor.sumar();
         p.simular(equipos, generador, false);
     }
+}
+
+void Torneo::generarR8() {
+    partidosR8.clear();
+
+    if (partidosR16.size() != 16) {
+        throw std::runtime_error("No se puede generar R8 porque R16 no tiene exactamente 16 partidos.");
+    }
+
+    std::vector<uint8_t> ganadoresR16;
+    ganadoresR16.reserve(16);
+
+    for (const auto& partido : partidosR16) {
+        medidor.sumar();
+
+        if (!partido.fueJugado()) {
+            throw std::runtime_error("No se puede generar R8 porque aun hay partidos de R16 sin simular.");
+        }
+
+        if (partido.getGanadorId() < 0) {
+            throw std::runtime_error("Se encontro un partido de R16 sin ganador valido.");
+        }
+
+        ganadoresR16.push_back(static_cast<uint8_t>(partido.getGanadorId()));
+    }
+
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+    Fecha fechaR8{10, 7, 2026};
+
+    for (size_t i = 0; i < ganadoresR16.size(); i += 2) {
+        medidor.sumar();
+
+        Partido p;
+        p.configurar(
+            fechaR8,
+            0,
+            0,
+            arbitros,
+            Etapa::R8,
+            ganadoresR16[i],
+            ganadoresR16[i + 1]
+            );
+
+        partidosR8.push_back(p);
+    }
+
+    if (partidosR8.size() != 8) {
+        throw std::runtime_error("La configuracion de R8 no produjo exactamente 8 partidos.");
+    }
+}
+
+void Torneo::imprimirR8() const {
+    std::cout << "===== PARTIDOS CONFIGURADOS PARA R8 =====\n";
+
+    for (size_t i = 0; i < partidosR8.size(); ++i) {
+        const Partido& p = partidosR8[i];
+
+        std::cout << "R8-" << i + 1 << ": "
+                  << equipos[p.getEquipo1Id()].getPais()
+                  << " vs "
+                  << equipos[p.getEquipo2Id()].getPais()
+                  << " | Fecha: " << Utilidades::fechaATexto(p.getFecha())
+                  << " | Hora: 00:00"
+                  << " | Sede: nombreSede\n";
+    }
+}
+
+void Torneo::simularR8() {
+    for (auto& p : partidosR8) {
+        medidor.sumar();
+        p.simular(equipos, generador, false);
+    }
+}
+
+void Torneo::generarQF() {
+    partidosQF.clear();
+
+    if (partidosR8.size() != 8) {
+        throw std::runtime_error("No se puede generar QF porque R8 no tiene exactamente 8 partidos.");
+    }
+
+    std::vector<uint8_t> ganadoresR8;
+    ganadoresR8.reserve(8);
+
+    for (const auto& partido : partidosR8) {
+        medidor.sumar();
+
+        if (!partido.fueJugado()) {
+            throw std::runtime_error("No se puede generar QF porque aun hay partidos de R8 sin simular.");
+        }
+
+        if (partido.getGanadorId() < 0) {
+            throw std::runtime_error("Se encontro un partido de R8 sin ganador valido.");
+        }
+
+        ganadoresR8.push_back(static_cast<uint8_t>(partido.getGanadorId()));
+    }
+
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+    Fecha fechaQF{10, 7, 2026};
+
+    for (size_t i = 0; i < ganadoresR8.size(); i += 2) {
+        medidor.sumar();
+
+        Partido p;
+        p.configurar(
+            fechaQF,
+            0,
+            0,
+            arbitros,
+            Etapa::QF,
+            ganadoresR8[i],
+            ganadoresR8[i + 1]
+            );
+
+        partidosQF.push_back(p);
+    }
+
+    if (partidosQF.size() != 4) {
+        throw std::runtime_error("La configuracion de QF no produjo exactamente 4 partidos.");
+    }
+}
+
+void Torneo::imprimirQF() const {
+    std::cout << "===== PARTIDOS CONFIGURADOS PARA QF =====\n";
+
+    for (size_t i = 0; i < partidosQF.size(); ++i) {
+        const Partido& p = partidosQF[i];
+
+        std::cout << "QF-" << i + 1 << ": "
+                  << equipos[p.getEquipo1Id()].getPais()
+                  << " vs "
+                  << equipos[p.getEquipo2Id()].getPais()
+                  << " | Fecha: " << Utilidades::fechaATexto(p.getFecha())
+                  << " | Hora: 00:00"
+                  << " | Sede: nombreSede\n";
+    }
+}
+
+void Torneo::simularQF() {
+    for (auto& p : partidosQF) {
+        medidor.sumar();
+        p.simular(equipos, generador, false);
+    }
+}
+
+void Torneo::generarSF() {
+    partidosSF.clear();
+
+    if (partidosQF.size() != 4) {
+        throw std::runtime_error("No se puede generar SF porque QF no tiene exactamente 4 partidos.");
+    }
+
+    std::vector<uint8_t> ganadoresQF;
+    ganadoresQF.reserve(4);
+
+    for (const auto& partido : partidosQF) {
+        medidor.sumar();
+
+        if (!partido.fueJugado()) {
+            throw std::runtime_error("No se puede generar SF porque aun hay partidos de QF sin simular.");
+        }
+
+        if (partido.getGanadorId() < 0) {
+            throw std::runtime_error("Se encontro un partido de QF sin ganador valido.");
+        }
+
+        ganadoresQF.push_back(static_cast<uint8_t>(partido.getGanadorId()));
+    }
+
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+    Fecha fechaSF{10, 7, 2026};
+
+    for (size_t i = 0; i < ganadoresQF.size(); i += 2) {
+        medidor.sumar();
+
+        Partido p;
+        p.configurar(
+            fechaSF,
+            0,
+            0,
+            arbitros,
+            Etapa::SF,
+            ganadoresQF[i],
+            ganadoresQF[i + 1]
+            );
+
+        partidosSF.push_back(p);
+    }
+
+    if (partidosSF.size() != 2) {
+        throw std::runtime_error("La configuracion de SF no produjo exactamente 2 partidos.");
+    }
+}
+
+void Torneo::imprimirSF() const {
+    std::cout << "===== PARTIDOS CONFIGURADOS PARA SF =====\n";
+
+    for (size_t i = 0; i < partidosSF.size(); ++i) {
+        const Partido& p = partidosSF[i];
+
+        std::cout << "SF-" << i + 1 << ": "
+                  << equipos[p.getEquipo1Id()].getPais()
+                  << " vs "
+                  << equipos[p.getEquipo2Id()].getPais()
+                  << " | Fecha: " << Utilidades::fechaATexto(p.getFecha())
+                  << " | Hora: 00:00"
+                  << " | Sede: nombreSede\n";
+    }
+}
+
+void Torneo::simularSF() {
+    for (auto& p : partidosSF) {
+        medidor.sumar();
+        p.simular(equipos, generador, false);
+    }
+}
+
+void Torneo::generarFinalYTercerPuesto() {
+    if (partidosSF.size() != 2) {
+        throw std::runtime_error("No se puede generar final y tercer puesto porque SF no tiene exactamente 2 partidos.");
+    }
+
+    for (const auto& partido : partidosSF) {
+        medidor.sumar();
+
+        if (!partido.fueJugado()) {
+            throw std::runtime_error("No se puede generar final y tercer puesto porque aun hay semifinales sin simular.");
+        }
+
+        if (partido.getGanadorId() < 0) {
+            throw std::runtime_error("Se encontro una semifinal sin ganador valido.");
+        }
+    }
+
+    uint8_t ganador1 = static_cast<uint8_t>(partidosSF[0].getGanadorId());
+    uint8_t ganador2 = static_cast<uint8_t>(partidosSF[1].getGanadorId());
+
+    uint8_t perdedor1 = (partidosSF[0].getEquipo1Id() == ganador1)
+                            ? partidosSF[0].getEquipo2Id()
+                            : partidosSF[0].getEquipo1Id();
+
+    uint8_t perdedor2 = (partidosSF[1].getEquipo1Id() == ganador2)
+                            ? partidosSF[1].getEquipo2Id()
+                            : partidosSF[1].getEquipo1Id();
+
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+    Fecha fechaFinal{10, 7, 2026};
+
+    partidoFinal = Partido();
+    partidoFinal.configurar(
+        fechaFinal,
+        0,
+        0,
+        arbitros,
+        Etapa::FINAL,
+        ganador1,
+        ganador2
+        );
+
+    partidoTercerPuesto = Partido();
+    partidoTercerPuesto.configurar(
+        fechaFinal,
+        0,
+        0,
+        arbitros,
+        Etapa::TERCER_PUESTO,
+        perdedor1,
+        perdedor2
+        );
+}
+
+void Torneo::imprimirFinalYTercerPuesto() const {
+    std::cout << "===== PARTIDO POR EL TERCER PUESTO =====\n";
+    std::cout << equipos[partidoTercerPuesto.getEquipo1Id()].getPais()
+              << " vs "
+              << equipos[partidoTercerPuesto.getEquipo2Id()].getPais()
+              << " | Fecha: " << Utilidades::fechaATexto(partidoTercerPuesto.getFecha())
+              << " | Hora: 00:00"
+              << " | Sede: nombreSede\n";
+
+    std::cout << "===== FINAL =====\n";
+    std::cout << equipos[partidoFinal.getEquipo1Id()].getPais()
+              << " vs "
+              << equipos[partidoFinal.getEquipo2Id()].getPais()
+              << " | Fecha: " << Utilidades::fechaATexto(partidoFinal.getFecha())
+              << " | Hora: 00:00"
+              << " | Sede: nombreSede\n";
+}
+
+void Torneo::simularFinalYTercerPuesto() {
+    medidor.sumar();
+    partidoTercerPuesto.simular(equipos, generador, false);
+
+    medidor.sumar();
+    partidoFinal.simular(equipos, generador, false);
 }
 
 void Torneo::generarReporteFinal() const {

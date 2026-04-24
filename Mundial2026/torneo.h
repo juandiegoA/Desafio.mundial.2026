@@ -53,7 +53,24 @@ public:
     std::vector<uint8_t> obtenerMejoresTerceros() const;
 
     void generarR16();
+    void imprimirR16() const;
     void simularR16();
+
+    void generarR8();
+    void imprimirR8() const;
+    void simularR8();
+
+    void generarQF();
+    void imprimirQF() const;
+    void simularQF();
+
+    void generarSF();
+    void imprimirSF() const;
+    void simularSF();
+
+    void generarFinalYTercerPuesto();
+    void imprimirFinalYTercerPuesto() const;
+    void simularFinalYTercerPuesto();
 
     void generarReporteFinal() const;
     void medirEstadoSistema(const std::string& nombreFase) const;

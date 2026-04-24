@@ -10,13 +10,6 @@ int main() {
         torneo.cargarEquiposCSV("C:/Users/Admin/Downloads/selecciones_clasificadas_mundial.csv");
         torneo.medirEstadoSistema("Carga de equipos CSV");
 
-        const auto& equipos = torneo.getEquipos();
-        std::cout << "Cantidad de equipos cargados: " << equipos.size() << "\n";
-
-        for (size_t i = 0; i < equipos.size() && i < 5; ++i) {
-            equipos[i].imprimirResumen();
-        }
-
         torneo.reiniciarIteraciones();
         torneo.generarJugadoresIniciales();
         torneo.medirEstadoSistema("Generacion de jugadores");
@@ -42,11 +35,48 @@ int main() {
 
         torneo.reiniciarIteraciones();
         torneo.generarR16();
-        torneo.medirEstadoSistema("Generacion de R16");
+        torneo.medirEstadoSistema("Transicion a R16");
+        torneo.imprimirR16();
 
         torneo.reiniciarIteraciones();
         torneo.simularR16();
         torneo.medirEstadoSistema("Simulacion de R16");
+
+        torneo.reiniciarIteraciones();
+        torneo.generarR8();
+        torneo.medirEstadoSistema("Transicion a R8");
+        torneo.imprimirR8();
+
+        torneo.reiniciarIteraciones();
+        torneo.simularR8();
+        torneo.medirEstadoSistema("Simulacion de R8");
+
+        torneo.reiniciarIteraciones();
+        torneo.generarQF();
+        torneo.medirEstadoSistema("Transicion a QF");
+        torneo.imprimirQF();
+
+        torneo.reiniciarIteraciones();
+        torneo.simularQF();
+        torneo.medirEstadoSistema("Simulacion de QF");
+
+        torneo.reiniciarIteraciones();
+        torneo.generarSF();
+        torneo.medirEstadoSistema("Transicion a SF");
+        torneo.imprimirSF();
+
+        torneo.reiniciarIteraciones();
+        torneo.simularSF();
+        torneo.medirEstadoSistema("Simulacion de SF");
+
+        torneo.reiniciarIteraciones();
+        torneo.generarFinalYTercerPuesto();
+        torneo.medirEstadoSistema("Generacion de final y tercer puesto");
+        torneo.imprimirFinalYTercerPuesto();
+
+        torneo.reiniciarIteraciones();
+        torneo.simularFinalYTercerPuesto();
+        torneo.medirEstadoSistema("Simulacion de final y tercer puesto");
 
         torneo.generarReporteFinal();
         torneo.medirEstadoSistema("Estado actual del sistema");
