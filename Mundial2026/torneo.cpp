@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 
@@ -24,20 +25,24 @@ void Torneo::cargarEquiposCSV(const std::string& archivoCSV) {
 
     std::string linea;
 
-    // Saltar título del archivo
+    // Saltar primera línea: título
     std::getline(archivo, linea);
 
-    // Saltar encabezado real
+    // Saltar segunda línea: encabezados
     std::getline(archivo, linea);
 
     uint8_t id = 0;
 
     while (std::getline(archivo, linea)) {
-        if (linea.empty()) continue;
+        if (linea.empty()) {
+            continue;
+        }
 
         auto campos = Utilidades::dividirCSV(linea);
 
-        if (campos.size() < 10) continue;
+        if (campos.size() < 10) {
+            continue;
+        }
 
         uint16_t ranking = static_cast<uint16_t>(std::stoi(campos[0]));
         std::string pais = campos[1];
@@ -78,24 +83,44 @@ void Torneo::crearBombos() {
     bombo3.clear();
     bombo4.clear();
 
-    std::vector<uint8_t> ids;
-    ids.reserve(equipos.size());
+    std::vector<uint8_t> idsResto;
+    idsResto.reserve(equipos.size());
+
+    bool anfitrionEncontrado = false;
 
     for (const auto& e : equipos) {
-        ids.push_back(e.getId());
+        if (e.getPais() == "United States") {
+            bombo1.push_back(e.getId());
+            anfitrionEncontrado = true;
+        } else {
+            idsResto.push_back(e.getId());
+        }
     }
 
-    std::sort(ids.begin(), ids.end(), [this](uint8_t a, uint8_t b) {
+    if (!anfitrionEncontrado) {
+        throw std::runtime_error("No se encontro al equipo anfitrion United States en la lista de equipos.");
+    }
+
+    std::sort(idsResto.begin(), idsResto.end(), [this](uint8_t a, uint8_t b) {
         return equipos[a].getRankingFIFA() < equipos[b].getRankingFIFA();
     });
 
     int idx = 0;
-    for (uint8_t id : ids) {
-        if (idx < 12) bombo1.push_back(id);
-        else if (idx < 24) bombo2.push_back(id);
-        else if (idx < 36) bombo3.push_back(id);
-        else bombo4.push_back(id);
-        ++idx;
+
+    while (bombo1.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        bombo1.push_back(idsResto[idx++]);
+    }
+
+    while (bombo2.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        bombo2.push_back(idsResto[idx++]);
+    }
+
+    while (bombo3.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        bombo3.push_back(idsResto[idx++]);
+    }
+
+    while (bombo4.size() < 12 && idx < static_cast<int>(idsResto.size())) {
+        bombo4.push_back(idsResto[idx++]);
     }
 }
 
@@ -119,26 +144,59 @@ void Torneo::conformarGrupos() {
     }
 
     std::array<std::vector<uint8_t>, 4> bombos{bombo1, bombo2, bombo3, bombo4};
+
     for (auto& bombo : bombos) {
         std::shuffle(bombo.begin(), bombo.end(), generador);
     }
 
+    std::vector<uint8_t> ordenAsignacion;
+    ordenAsignacion.reserve(48);
+
+    // Primero todos los del bombo 1, luego todos los del 2, etc.
     for (int b = 0; b < 4; ++b) {
         for (uint8_t idEquipo : bombos[b]) {
-            bool asignado = false;
+            ordenAsignacion.push_back(idEquipo);
+        }
+    }
 
-            for (auto& grupo : grupos) {
-                if (grupo.puedeAgregarEquipo(equipos[idEquipo], equipos)) {
-                    grupo.agregarEquipo(idEquipo);
-                    asignado = true;
-                    break;
-                }
+    std::function<bool(size_t)> backtrack = [&](size_t indice) -> bool {
+        if (indice == ordenAsignacion.size()) {
+            return true;
+        }
+
+        uint8_t idEquipo = ordenAsignacion[indice];
+        const Equipo& equipoActual = equipos[idEquipo];
+
+        // Qué "ronda" de llenado vamos
+        // 0 -> primer equipo de cada grupo (bombo 1)
+        // 1 -> segundo equipo de cada grupo (bombo 2)
+        // 2 -> tercero (bombo 3)
+        // 3 -> cuarto (bombo 4)
+        int ronda = static_cast<int>(indice / 12);
+
+        for (int g = 0; g < 12; ++g) {
+            // Solo se puede agregar a grupos que estén exactamente
+            // en la ronda actual
+            if (grupos[g].getCantidadEquipos() != ronda) {
+                continue;
             }
 
-            if (!asignado) {
-                throw std::runtime_error("No se pudo conformar un grupo valido con las restricciones actuales.");
+            if (grupos[g].puedeAgregarEquipo(equipoActual, equipos)) {
+                grupos[g].agregarEquipo(idEquipo);
+
+                if (backtrack(indice + 1)) {
+                    return true;
+                }
+
+                grupos[g].quitarUltimoEquipo();
             }
         }
+
+        return false;
+    };
+
+    if (!backtrack(0)) {
+        throw std::runtime_error("No se pudo conformar un grupo valido con las restricciones actuales.");
     }
 }
 
@@ -165,9 +223,11 @@ void Torneo::simularFaseGrupos() {
 
 std::array<std::array<FilaTablaGrupo, 4>, 12> Torneo::construirTablasGrupos() const {
     std::array<std::array<FilaTablaGrupo, 4>, 12> tablas{};
+
     for (int i = 0; i < 12; ++i) {
         tablas[i] = grupos[i].construirTabla(equipos);
     }
+
     return tablas;
 }
 
@@ -180,19 +240,23 @@ void Torneo::imprimirTablasGrupos() const {
 
 std::vector<uint8_t> Torneo::obtenerPrimeros() const {
     std::vector<uint8_t> primeros;
+
     for (const auto& grupo : grupos) {
         auto tabla = grupo.construirTabla(equipos);
         primeros.push_back(tabla[0].equipoId);
     }
+
     return primeros;
 }
 
 std::vector<uint8_t> Torneo::obtenerSegundos() const {
     std::vector<uint8_t> segundos;
+
     for (const auto& grupo : grupos) {
         auto tabla = grupo.construirTabla(equipos);
         segundos.push_back(tabla[1].equipoId);
     }
+
     return segundos;
 }
 
@@ -229,6 +293,7 @@ void Torneo::generarR16() {
     Fecha f{10, 7, 2026};
 
     int n = 0;
+
     for (size_t i = 0; i < primeros.size() && i < terceros.size(); ++i) {
         Partido p;
         p.configurar(f, 0, 0, arbitros, Etapa::R16, primeros[i], terceros[i]);
@@ -255,6 +320,7 @@ void Torneo::generarReporteFinal() const {
     std::cout << "===== REPORTE FINAL =====\n";
 
     const Equipo* maxEquipo = nullptr;
+
     for (const auto& e : equipos) {
         if (!maxEquipo || e.getGolesFavorHistoricos() > maxEquipo->getGolesFavorHistoricos()) {
             maxEquipo = &e;

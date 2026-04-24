@@ -13,13 +13,14 @@ std::vector<std::string> dividirCSV(const std::string& linea) {
     for (char c : linea) {
         if (c == '"') {
             dentroComillas = !dentroComillas;
-        } else if (c == ',' && !dentroComillas) {
+        } else if (c == ';' && !dentroComillas) {
             partes.push_back(actual);
             actual.clear();
         } else {
             actual.push_back(c);
         }
     }
+
     partes.push_back(actual);
     return partes;
 }
@@ -68,11 +69,14 @@ std::string fechaATexto(const Fecha& fecha) {
 }
 
 int diasDesdeReferencia(const Fecha& fecha) {
-    return static_cast<int>(fecha.anio) * 365 + static_cast<int>(fecha.mes) * 30 + static_cast<int>(fecha.dia);
+    return static_cast<int>(fecha.anio) * 365
+           + static_cast<int>(fecha.mes) * 30
+           + static_cast<int>(fecha.dia);
 }
 
 Fecha sumarDias(const Fecha& fecha, int dias) {
     int total = diasDesdeReferencia(fecha) + dias;
+
     Fecha nueva{};
     nueva.anio = total / 365;
     total %= 365;
@@ -82,6 +86,7 @@ Fecha sumarDias(const Fecha& fecha, int dias) {
 
     if (nueva.dia == 0) nueva.dia = 1;
     if (nueva.mes == 0) nueva.mes = 1;
+
     return nueva;
 }
 

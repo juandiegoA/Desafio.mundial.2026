@@ -1,13 +1,19 @@
 #include <iostream>
 #include "Torneo.h"
-
 int main() {
     try {
         Torneo torneo;
 
         torneo.cargarEquiposCSV("C:/Users/Admin/Downloads/selecciones_clasificadas_mundial.csv");
-        torneo.generarJugadoresIniciales();
 
+        const auto& equipos = torneo.getEquipos();
+        std::cout << "Cantidad de equipos cargados: " << equipos.size() << "\n";
+
+        for (size_t i = 0; i < equipos.size() && i < 5; ++i) {
+            equipos[i].imprimirResumen();
+        }
+
+        torneo.generarJugadoresIniciales();
         torneo.crearBombos();
         torneo.imprimirBombos();
 
@@ -26,13 +32,6 @@ int main() {
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << '\n';
-    }
-
-    const auto& equipos = torneo.getEquipos();
-    std::cout << "Cantidad de equipos cargados: " << equipos.size() << "\n";
-
-    for (size_t i = 0; i < equipos.size() && i < 5; ++i) {
-        equipos[i].imprimirResumen();
     }
 
     return 0;

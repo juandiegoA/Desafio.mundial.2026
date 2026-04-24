@@ -28,6 +28,7 @@ public:
 
     bool puedeAgregarEquipo(const Equipo& equipo, const std::vector<Equipo>& todos) const;
     bool agregarEquipo(uint8_t equipoId);
+    void quitarUltimoEquipo();
 
     void generarPartidos();
     std::array<FilaTablaGrupo, 4> construirTabla(const std::vector<Equipo>& equipos) const;
