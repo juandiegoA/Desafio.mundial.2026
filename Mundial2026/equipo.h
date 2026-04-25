@@ -2,11 +2,10 @@
 #define EQUIPO_H
 
 #include <array>
-#include <iostream>
 #include <random>
 #include <string>
 
-#include "Jugador.h"
+#include "jugador.h"
 #include "Tipos.h"
 
 class Equipo {
@@ -20,17 +19,18 @@ private:
 
     uint16_t golesFavorHistoricos;
     uint16_t golesContraHistoricos;
-    uint16_t partidosGanados;
-    uint16_t partidosEmpatados;
-    uint16_t partidosPerdidos;
-    uint16_t tarjetasAmarillas;
-    uint16_t tarjetasRojas;
-    uint16_t faltas;
+    uint16_t partidosGanadosHistoricos;
+    uint16_t partidosEmpatadosHistoricos;
+    uint16_t partidosPerdidosHistoricos;
+    uint16_t tarjetasAmarillasHistoricas;
+    uint16_t tarjetasRojasHistoricas;
+    uint16_t faltasHistoricas;
 
     std::array<Jugador, 26> jugadores;
 
 public:
     Equipo();
+
     Equipo(uint8_t id,
            const std::string& pais,
            const std::string& directorTecnico,
@@ -39,9 +39,9 @@ public:
            uint16_t rankingFIFA,
            uint16_t golesFavorHistoricos,
            uint16_t golesContraHistoricos,
-           uint16_t partidosGanados,
-           uint16_t partidosEmpatados,
-           uint16_t partidosPerdidos);
+           uint16_t partidosGanadosHistoricos,
+           uint16_t partidosEmpatadosHistoricos,
+           uint16_t partidosPerdidosHistoricos);
 
     uint8_t getId() const;
     const std::string& getPais() const;
@@ -49,37 +49,45 @@ public:
     const std::string& getFederacion() const;
     Confederacion getConfederacion() const;
     uint16_t getRankingFIFA() const;
+
     uint16_t getGolesFavorHistoricos() const;
     uint16_t getGolesContraHistoricos() const;
-    uint16_t getPartidosGanados() const;
-    uint16_t getPartidosEmpatados() const;
-    uint16_t getPartidosPerdidos() const;
-    uint16_t getTarjetasAmarillas() const;
-    uint16_t getTarjetasRojas() const;
-    uint16_t getFaltas() const;
+    uint16_t getPartidosGanadosHistoricos() const;
+    uint16_t getPartidosEmpatadosHistoricos() const;
+    uint16_t getPartidosPerdidosHistoricos() const;
+    uint16_t getTarjetasAmarillasHistoricas() const;
+    uint16_t getTarjetasRojasHistoricas() const;
+    uint16_t getFaltasHistoricas() const;
 
-    std::array<Jugador, 26>& getJugadores();
     const std::array<Jugador, 26>& getJugadores() const;
+    std::array<Jugador, 26>& getJugadores();
+
+    double promedioGF() const;
+    double promedioGC() const;
 
     void generarJugadoresArtificiales();
+
+    void actualizarEstadisticas(uint8_t golesFavorPartido,
+                                uint8_t golesContraPartido,
+                                uint8_t tarjetasAmarillasPartido,
+                                uint8_t tarjetasRojasPartido,
+                                uint8_t faltasPartido);
+
     std::array<uint8_t, 11> seleccionarTitulares(std::mt19937& gen) const;
 
     void actualizarHistoricoEquipo(uint8_t golesFavorPartido,
                                    uint8_t golesContraPartido,
-                                   uint8_t amarillasPartido,
-                                   uint8_t rojasPartido,
+                                   uint8_t tarjetasAmarillasPartido,
+                                   uint8_t tarjetasRojasPartido,
                                    uint8_t faltasPartido,
                                    bool victoria,
                                    bool empate,
                                    bool derrota);
 
-    void actualizarJugadoresConvocados(const std::array<EstadisticasJugadorPartido, 11>& estadisticasJugadores);
-
-    float promedioGF() const;
-    float promedioGC() const;
+    void actualizarJugadoresConvocados(
+        const std::array<EstadisticasJugadorPartido, 11>& estadisticasJugadores);
 
     void imprimirResumen() const;
-    void imprimirJugadores() const;
 };
 
 #endif

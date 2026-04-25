@@ -46,14 +46,8 @@ double Partido::calcularGolesEsperados(const Equipo& atacante, const Equipo& riv
     double gf = atacante.promedioGF();
     double gc = rival.promedioGC();
 
-    // Evitar ceros exactos que colapsen la fórmula
-    if (gf <= 0.0) {
-        gf = 0.01;
-    }
-
-    if (gc <= 0.0) {
-        gc = 0.01;
-    }
+    if (gf <= 0.0) gf = 0.01;
+    if (gc <= 0.0) gc = 0.01;
 
     return mu * std::pow(gf / mu, alpha) * std::pow(gc / mu, beta);
 }
@@ -236,11 +230,103 @@ const EstadisticasEquipoPartido& Partido::getStats1() const { return stats1; }
 const EstadisticasEquipoPartido& Partido::getStats2() const { return stats2; }
 
 void Partido::imprimirDetalle(const std::vector<Equipo>& equipos) const {
-    std::cout << "[" << Utilidades::etapaATexto(etapa) << "] "
-              << equipos[equipo1Id].getPais() << " " << static_cast<int>(stats1.golesFavor)
-              << " - " << static_cast<int>(stats2.golesFavor) << " "
-              << equipos[equipo2Id].getPais()
-              << " | Fecha: " << Utilidades::fechaATexto(fecha)
-              << (huboProrroga ? " | Prorroga" : "")
-              << '\n';
+    const Equipo& eq1 = equipos[equipo1Id];
+    const Equipo& eq2 = equipos[equipo2Id];
+
+    auto imprimirTitulares = [](const std::array<uint8_t, 11>& titulares) {
+        for (size_t i = 0; i < titulares.size(); ++i) {
+            std::cout << static_cast<int>(titulares[i] + 1);
+            if (i + 1 < titulares.size()) {
+                std::cout << ", ";
+            }
+        }
+        std::cout << '\n';
+    };
+
+    auto imprimirGoleadores = [](const std::array<EstadisticasJugadorPartido, 11>& estadisticas) {
+        bool hayGoleadores = false;
+
+        for (const auto& j : estadisticas) {
+            if (j.goles > 0) {
+                hayGoleadores = true;
+                std::cout << "Camiseta " << static_cast<int>(j.indiceJugador + 1)
+                          << " (" << static_cast<int>(j.goles) << " gol";
+                if (j.goles > 1) {
+                    std::cout << "es";
+                }
+                std::cout << "), ";
+            }
+        }
+
+        if (!hayGoleadores) {
+            std::cout << "Ninguno";
+        } else {
+            std::cout << "\b\b  ";
+        }
+        std::cout << '\n';
+    };
+
+    auto imprimirEstadisticasJugadores = [&](const Equipo& equipo,
+                                             const std::array<EstadisticasJugadorPartido, 11>& estadisticas) {
+        for (const auto& j : estadisticas) {
+            const auto& jugador = equipo.getJugadores()[j.indiceJugador];
+
+            std::cout << "  - Camiseta " << static_cast<int>(jugador.getNumeroCamiseta())
+                      << " | " << jugador.getNombre() << " " << jugador.getApellido()
+                      << " | Goles: " << static_cast<int>(j.goles)
+                      << " | Min: " << static_cast<int>(j.minutosJugados)
+                      << " | TA: " << static_cast<int>(j.tarjetasAmarillas)
+                      << " | TR: " << static_cast<int>(j.tarjetasRojas)
+                      << " | Faltas: " << static_cast<int>(j.faltas)
+                      << '\n';
+        }
+    };
+
+    std::cout << "========================================\n";
+    std::cout << "Etapa: " << Utilidades::etapaATexto(etapa) << '\n';
+    std::cout << "Fecha: " << Utilidades::fechaATexto(fecha) << '\n';
+    std::cout << "Hora: 00:00\n";
+    std::cout << "Sede: nombreSede\n";
+    std::cout << "Arbitros: codArbitro1, codArbitro2, codArbitro3\n";
+    std::cout << "Partido: " << eq1.getPais() << " vs " << eq2.getPais() << '\n';
+    std::cout << "Marcador: " << eq1.getPais() << " " << static_cast<int>(stats1.golesFavor)
+              << " - " << static_cast<int>(stats2.golesFavor) << " " << eq2.getPais() << '\n';
+
+    if (huboProrroga) {
+        std::cout << "Resolucion: Prorroga\n";
+    } else {
+        std::cout << "Resolucion: Tiempo reglamentario\n";
+    }
+
+    if (ganadorId >= 0) {
+        std::cout << "Ganador: " << equipos[ganadorId].getPais() << '\n';
+    } else {
+        std::cout << "Ganador: Empate\n";
+    }
+
+    std::cout << "\n--- Datos de equipo 1 ---\n";
+    std::cout << "Equipo: " << eq1.getPais() << '\n';
+    std::cout << "Goles a favor: " << static_cast<int>(stats1.golesFavor) << '\n';
+    std::cout << "Goles en contra: " << static_cast<int>(stats1.golesContra) << '\n';
+    std::cout << "Posesion: " << stats1.posesionBalon << "%\n";
+    std::cout << "Titulares (numeros de camiseta): ";
+    imprimirTitulares(stats1.titulares);
+    std::cout << "Goleadores (numeros de camiseta): ";
+    imprimirGoleadores(stats1.estadisticasJugadores);
+    std::cout << "Estadisticas individuales:\n";
+    imprimirEstadisticasJugadores(eq1, stats1.estadisticasJugadores);
+
+    std::cout << "\n--- Datos de equipo 2 ---\n";
+    std::cout << "Equipo: " << eq2.getPais() << '\n';
+    std::cout << "Goles a favor: " << static_cast<int>(stats2.golesFavor) << '\n';
+    std::cout << "Goles en contra: " << static_cast<int>(stats2.golesContra) << '\n';
+    std::cout << "Posesion: " << stats2.posesionBalon << "%\n";
+    std::cout << "Titulares (numeros de camiseta): ";
+    imprimirTitulares(stats2.titulares);
+    std::cout << "Goleadores (numeros de camiseta): ";
+    imprimirGoleadores(stats2.estadisticasJugadores);
+    std::cout << "Estadisticas individuales:\n";
+    imprimirEstadisticasJugadores(eq2, stats2.estadisticasJugadores);
+
+    std::cout << "========================================\n";
 }

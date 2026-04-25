@@ -30,6 +30,15 @@ private:
     MedidorRecursos medidor;
     std::mt19937 generador;
 
+    bool equipoDisponibleEnFecha(uint8_t equipoId,
+                                 int diaCalendario,
+                                 const std::vector<int>& ultimaFechaJugado) const;
+
+    bool puedeProgramarPartidoEnFecha(const Partido& partido,
+                                      int diaCalendario,
+                                      const std::vector<int>& ultimaFechaJugado,
+                                      int partidosYaProgramadosEseDia) const;
+
 public:
     Torneo();
 
@@ -43,6 +52,7 @@ public:
     void imprimirGrupos() const;
 
     void generarCalendarioGrupos();
+    void imprimirCalendarioGrupos() const;
     void simularFaseGrupos();
 
     std::array<std::array<FilaTablaGrupo, 4>, 12> construirTablasGrupos() const;
@@ -53,7 +63,9 @@ public:
     std::vector<uint8_t> obtenerMejoresTerceros() const;
 
     void generarR16();
+    void imprimirClasificadosR16() const;
     void imprimirR16() const;
+    void validarR16() const;
     void simularR16();
 
     void generarR8();
@@ -72,7 +84,19 @@ public:
     void imprimirFinalYTercerPuesto() const;
     void simularFinalYTercerPuesto();
 
+    void imprimirDetalleFaseGrupos() const;
+    void imprimirDetalleR16() const;
+    void imprimirDetalleR8() const;
+    void imprimirDetalleQF() const;
+    void imprimirDetalleSF() const;
+    void imprimirDetalleFinalYTercerPuesto() const;
+
     void generarReporteFinal() const;
+
+    void guardarEquiposActualizadosCSV(const std::string& rutaArchivo) const;
+    void guardarJugadoresActualizadosCSV(const std::string& rutaArchivo) const;
+    void guardarDatosActualizados() const;
+
     void medirEstadoSistema(const std::string& nombreFase) const;
 
     void reiniciarIteraciones();

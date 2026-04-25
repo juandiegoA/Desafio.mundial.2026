@@ -27,6 +27,7 @@ int main() {
         torneo.reiniciarIteraciones();
         torneo.generarCalendarioGrupos();
         torneo.medirEstadoSistema("Generacion del calendario de grupos");
+        torneo.imprimirCalendarioGrupos();
 
         torneo.reiniciarIteraciones();
         torneo.simularFaseGrupos();
@@ -36,6 +37,7 @@ int main() {
         torneo.reiniciarIteraciones();
         torneo.generarR16();
         torneo.medirEstadoSistema("Transicion a R16");
+        torneo.imprimirClasificadosR16();
         torneo.imprimirR16();
 
         torneo.reiniciarIteraciones();
@@ -79,6 +81,11 @@ int main() {
         torneo.medirEstadoSistema("Simulacion de final y tercer puesto");
 
         torneo.generarReporteFinal();
+
+        torneo.reiniciarIteraciones();
+        torneo.guardarDatosActualizados();
+        torneo.medirEstadoSistema("Persistencia de datos actualizados");
+
         torneo.medirEstadoSistema("Estado actual del sistema");
     }
     catch (const std::exception& e) {

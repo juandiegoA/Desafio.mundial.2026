@@ -78,25 +78,22 @@ void Grupo::quitarUltimoEquipo() {
 }
 
 void Grupo::generarPartidos() {
-    cantidadPartidos = 0;
+    cantidadPartidos = 6;
 
     std::array<uint16_t, 3> arbitros{1, 2, 3};
-    Fecha f{20, 6, 2026};
+    Fecha fechaProvisional{20, 6, 2026};
 
-    for (uint8_t i = 0; i < 4; ++i) {
-        for (uint8_t j = i + 1; j < 4; ++j) {
-            partidos[cantidadPartidos].configurar(
-                f,
-                0,
-                0,
-                arbitros,
-                Etapa::GRUPOS,
-                idsEquipos[i],
-                idsEquipos[j]
-                );
-            ++cantidadPartidos;
-        }
-    }
+    // Jornada 1
+    partidos[0].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[0], idsEquipos[1]);
+    partidos[1].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[2], idsEquipos[3]);
+
+    // Jornada 2
+    partidos[2].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[0], idsEquipos[2]);
+    partidos[3].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[1], idsEquipos[3]);
+
+    // Jornada 3
+    partidos[4].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[0], idsEquipos[3]);
+    partidos[5].configurar(fechaProvisional, 0, 0, arbitros, Etapa::GRUPOS, idsEquipos[1], idsEquipos[2]);
 }
 
 std::array<FilaTablaGrupo, 4> Grupo::construirTabla(const std::vector<Equipo>& equipos) const {

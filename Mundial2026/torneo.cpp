@@ -14,7 +14,7 @@ namespace {
 struct EquipoClasificado {
     uint8_t equipoId;
     char grupo;
-    uint8_t posicion;   // 1, 2 o 3
+    uint8_t posicion;
     uint8_t puntos;
     int16_t diferenciaGoles;
     uint8_t golesFavor;
@@ -229,10 +229,130 @@ void Torneo::imprimirGrupos() const {
     }
 }
 
+bool Torneo::equipoDisponibleEnFecha(uint8_t equipoId,
+                                     int diaCalendario,
+                                     const std::vector<int>& ultimaFechaJugado) const {
+    int ultimoDia = ultimaFechaJugado[equipoId];
+    if (ultimoDia == -1000) {
+        return true;
+    }
+    return (diaCalendario - ultimoDia) >= 3;
+}
+
+bool Torneo::puedeProgramarPartidoEnFecha(const Partido& partido,
+                                          int diaCalendario,
+                                          const std::vector<int>& ultimaFechaJugado,
+                                          int partidosYaProgramadosEseDia) const {
+    if (partidosYaProgramadosEseDia >= 4) {
+        return false;
+    }
+
+    return equipoDisponibleEnFecha(partido.getEquipo1Id(), diaCalendario, ultimaFechaJugado) &&
+           equipoDisponibleEnFecha(partido.getEquipo2Id(), diaCalendario, ultimaFechaJugado);
+}
+
 void Torneo::generarCalendarioGrupos() {
     for (auto& grupo : grupos) {
         medidor.sumar();
         grupo.generarPartidos();
+    }
+
+    Fecha fechaInicio{20, 6, 2026};
+    std::array<uint16_t, 3> arbitros{1, 2, 3};
+
+    for (int bloque = 0; bloque < 6; ++bloque) {
+        medidor.sumar();
+
+        int grupo1 = 2 * bloque;
+        int grupo2 = 2 * bloque + 1;
+
+        int diaJ1 = bloque;
+        int diaJ2 = bloque + 6;
+        int diaJ3 = bloque + 12;
+
+        Fecha fechaJ1 = Utilidades::sumarDias(fechaInicio, diaJ1);
+        Fecha fechaJ2 = Utilidades::sumarDias(fechaInicio, diaJ2);
+        Fecha fechaJ3 = Utilidades::sumarDias(fechaInicio, diaJ3);
+
+        {
+            auto& partidos = grupos[grupo1].getPartidos();
+
+            partidos[0].configurar(fechaJ1, 0, 0, arbitros, Etapa::GRUPOS, partidos[0].getEquipo1Id(), partidos[0].getEquipo2Id());
+            partidos[1].configurar(fechaJ1, 0, 0, arbitros, Etapa::GRUPOS, partidos[1].getEquipo1Id(), partidos[1].getEquipo2Id());
+
+            partidos[2].configurar(fechaJ2, 0, 0, arbitros, Etapa::GRUPOS, partidos[2].getEquipo1Id(), partidos[2].getEquipo2Id());
+            partidos[3].configurar(fechaJ2, 0, 0, arbitros, Etapa::GRUPOS, partidos[3].getEquipo1Id(), partidos[3].getEquipo2Id());
+
+            partidos[4].configurar(fechaJ3, 0, 0, arbitros, Etapa::GRUPOS, partidos[4].getEquipo1Id(), partidos[4].getEquipo2Id());
+            partidos[5].configurar(fechaJ3, 0, 0, arbitros, Etapa::GRUPOS, partidos[5].getEquipo1Id(), partidos[5].getEquipo2Id());
+        }
+
+        {
+            auto& partidos = grupos[grupo2].getPartidos();
+
+            partidos[0].configurar(fechaJ1, 0, 0, arbitros, Etapa::GRUPOS, partidos[0].getEquipo1Id(), partidos[0].getEquipo2Id());
+            partidos[1].configurar(fechaJ1, 0, 0, arbitros, Etapa::GRUPOS, partidos[1].getEquipo1Id(), partidos[1].getEquipo2Id());
+
+            partidos[2].configurar(fechaJ2, 0, 0, arbitros, Etapa::GRUPOS, partidos[2].getEquipo1Id(), partidos[2].getEquipo2Id());
+            partidos[3].configurar(fechaJ2, 0, 0, arbitros, Etapa::GRUPOS, partidos[3].getEquipo1Id(), partidos[3].getEquipo2Id());
+
+            partidos[4].configurar(fechaJ3, 0, 0, arbitros, Etapa::GRUPOS, partidos[4].getEquipo1Id(), partidos[4].getEquipo2Id());
+            partidos[5].configurar(fechaJ3, 0, 0, arbitros, Etapa::GRUPOS, partidos[5].getEquipo1Id(), partidos[5].getEquipo2Id());
+        }
+    }
+}
+
+void Torneo::imprimirCalendarioGrupos() const {
+    struct PartidoCalendario {
+        Fecha fecha;
+        uint8_t equipo1Id;
+        uint8_t equipo2Id;
+        char grupo;
+        int jornada;
+    };
+
+    std::vector<PartidoCalendario> calendario;
+    calendario.reserve(72);
+
+    for (int g = 0; g < 12; ++g) {
+        char letraGrupo = static_cast<char>('A' + g);
+        const auto& partidos = grupos[g].getPartidos();
+
+        for (int p = 0; p < 6; ++p) {
+            int jornada = 1;
+            if (p >= 2 && p <= 3) jornada = 2;
+            else if (p >= 4) jornada = 3;
+
+            calendario.push_back({
+                partidos[p].getFecha(),
+                partidos[p].getEquipo1Id(),
+                partidos[p].getEquipo2Id(),
+                letraGrupo,
+                jornada
+            });
+        }
+    }
+
+    std::sort(calendario.begin(), calendario.end(),
+              [](const PartidoCalendario& a, const PartidoCalendario& b) {
+                  if (a.fecha.anio != b.fecha.anio) return a.fecha.anio < b.fecha.anio;
+                  if (a.fecha.mes != b.fecha.mes) return a.fecha.mes < b.fecha.mes;
+                  if (a.fecha.dia != b.fecha.dia) return a.fecha.dia < b.fecha.dia;
+                  if (a.grupo != b.grupo) return a.grupo < b.grupo;
+                  return a.jornada < b.jornada;
+              });
+
+    std::cout << "===== CALENDARIO DE FASE DE GRUPOS =====\n";
+
+    for (const auto& p : calendario) {
+        std::cout << Utilidades::fechaATexto(p.fecha)
+        << " | Grupo " << p.grupo
+        << " | Jornada " << p.jornada
+        << " | "
+        << equipos[p.equipo1Id].getPais()
+        << " vs "
+        << equipos[p.equipo2Id].getPais()
+        << '\n';
     }
 }
 
@@ -306,6 +426,74 @@ std::vector<uint8_t> Torneo::obtenerMejoresTerceros() const {
     }
 
     return mejores;
+}
+
+void Torneo::imprimirClasificadosR16() const {
+    auto tablas = construirTablasGrupos();
+
+    struct EquipoClasificadoSimple {
+        uint8_t equipoId;
+        char grupo;
+        uint8_t posicion;
+        uint8_t puntos;
+        int16_t diferenciaGoles;
+        uint8_t golesFavor;
+    };
+
+    std::vector<EquipoClasificadoSimple> primeros;
+    std::vector<EquipoClasificadoSimple> segundos;
+    std::vector<EquipoClasificadoSimple> terceros;
+
+    for (int i = 0; i < 12; ++i) {
+        char letraGrupo = static_cast<char>('A' + i);
+
+        const auto& t1 = tablas[i][0];
+        const auto& t2 = tablas[i][1];
+        const auto& t3 = tablas[i][2];
+
+        primeros.push_back({t1.equipoId, letraGrupo, 1, t1.puntos, t1.diferenciaGoles, t1.golesFavor});
+        segundos.push_back({t2.equipoId, letraGrupo, 2, t2.puntos, t2.diferenciaGoles, t2.golesFavor});
+        terceros.push_back({t3.equipoId, letraGrupo, 3, t3.puntos, t3.diferenciaGoles, t3.golesFavor});
+    }
+
+    std::sort(terceros.begin(), terceros.end(),
+              [](const EquipoClasificadoSimple& a, const EquipoClasificadoSimple& b) {
+                  if (a.puntos != b.puntos) return a.puntos > b.puntos;
+                  if (a.diferenciaGoles != b.diferenciaGoles) return a.diferenciaGoles > b.diferenciaGoles;
+                  return a.golesFavor > b.golesFavor;
+              });
+
+    std::cout << "===== CLASIFICADOS A R16 =====\n";
+
+    std::cout << "\n--- Primeros de grupo ---\n";
+    for (const auto& e : primeros) {
+        std::cout << "Grupo " << e.grupo << ": " << equipos[e.equipoId].getPais()
+        << " | Pts: " << static_cast<int>(e.puntos)
+        << " | DG: " << e.diferenciaGoles
+        << " | GF: " << static_cast<int>(e.golesFavor) << '\n';
+    }
+
+    std::cout << "\n--- Segundos de grupo ---\n";
+    for (const auto& e : segundos) {
+        std::cout << "Grupo " << e.grupo << ": " << equipos[e.equipoId].getPais()
+        << " | Pts: " << static_cast<int>(e.puntos)
+        << " | DG: " << e.diferenciaGoles
+        << " | GF: " << static_cast<int>(e.golesFavor) << '\n';
+    }
+
+    std::cout << "\n--- Terceros ordenados ---\n";
+    for (size_t i = 0; i < terceros.size(); ++i) {
+        const auto& e = terceros[i];
+        std::cout << i + 1 << ". Grupo " << e.grupo << ": " << equipos[e.equipoId].getPais()
+                  << " | Pts: " << static_cast<int>(e.puntos)
+                  << " | DG: " << e.diferenciaGoles
+                  << " | GF: " << static_cast<int>(e.golesFavor);
+
+        if (i < 8) {
+            std::cout << "  <-- CLASIFICA";
+        }
+        std::cout << '\n';
+    }
 }
 
 void Torneo::generarR16() {
@@ -486,6 +674,8 @@ void Torneo::generarR16() {
         medidor.sumar();
         agregarCruce(par.first, par.second);
     }
+
+    validarR16();
 }
 
 void Torneo::imprimirR16() const {
@@ -502,6 +692,65 @@ void Torneo::imprimirR16() const {
                   << " | Hora: 00:00"
                   << " | Sede: nombreSede\n";
     }
+}
+
+void Torneo::validarR16() const {
+    if (partidosR16.size() != 16) {
+        throw std::runtime_error("R16 no contiene exactamente 16 partidos.");
+    }
+
+    std::vector<int> frecuencia(equipos.size(), 0);
+
+    for (const auto& partido : partidosR16) {
+        uint8_t e1 = partido.getEquipo1Id();
+        uint8_t e2 = partido.getEquipo2Id();
+
+        if (e1 == e2) {
+            throw std::runtime_error("Se encontro un partido de R16 con el mismo equipo repetido.");
+        }
+
+        frecuencia[e1]++;
+        frecuencia[e2]++;
+    }
+
+    int totalEquiposUsados = 0;
+    for (int f : frecuencia) {
+        if (f > 0) {
+            totalEquiposUsados++;
+        }
+        if (f > 1) {
+            throw std::runtime_error("Un equipo aparece mas de una vez en los cruces de R16.");
+        }
+    }
+
+    if (totalEquiposUsados != 32) {
+        throw std::runtime_error("R16 no utiliza exactamente 32 equipos distintos.");
+    }
+
+    for (const auto& partido : partidosR16) {
+        bool mismoGrupo = false;
+
+        for (const auto& grupo : grupos) {
+            bool tiene1 = false;
+            bool tiene2 = false;
+
+            for (uint8_t id : grupo.getIdsEquipos()) {
+                if (id == partido.getEquipo1Id()) tiene1 = true;
+                if (id == partido.getEquipo2Id()) tiene2 = true;
+            }
+
+            if (tiene1 && tiene2) {
+                mismoGrupo = true;
+                break;
+            }
+        }
+
+        if (mismoGrupo) {
+            throw std::runtime_error("Se encontro un cruce de R16 entre equipos del mismo grupo.");
+        }
+    }
+
+    std::cout << "[VALIDACION] R16 configurado correctamente.\n";
 }
 
 void Torneo::simularR16() {
@@ -807,12 +1056,75 @@ void Torneo::simularFinalYTercerPuesto() {
     partidoFinal.simular(equipos, generador, false);
 }
 
-void Torneo::generarReporteFinal() const {
-    std::cout << "===== REPORTE FINAL DEL TORNEO =====\n";
+void Torneo::imprimirDetalleFaseGrupos() const {
+    std::cout << "===== DETALLE DE PARTIDOS - FASE DE GRUPOS =====\n";
 
-    // =========================================================
-    // 1. Ranking de los 4 primeros puestos
-    // =========================================================
+    for (const auto& grupo : grupos) {
+        for (const auto& partido : grupo.getPartidos()) {
+            if (partido.fueJugado()) {
+                partido.imprimirDetalle(equipos);
+            }
+        }
+    }
+}
+
+void Torneo::imprimirDetalleR16() const {
+    std::cout << "===== DETALLE DE PARTIDOS - R16 =====\n";
+
+    for (const auto& partido : partidosR16) {
+        if (partido.fueJugado()) {
+            partido.imprimirDetalle(equipos);
+        }
+    }
+}
+
+void Torneo::imprimirDetalleR8() const {
+    std::cout << "===== DETALLE DE PARTIDOS - R8 =====\n";
+
+    for (const auto& partido : partidosR8) {
+        if (partido.fueJugado()) {
+            partido.imprimirDetalle(equipos);
+        }
+    }
+}
+
+void Torneo::imprimirDetalleQF() const {
+    std::cout << "===== DETALLE DE PARTIDOS - QF =====\n";
+
+    for (const auto& partido : partidosQF) {
+        if (partido.fueJugado()) {
+            partido.imprimirDetalle(equipos);
+        }
+    }
+}
+
+void Torneo::imprimirDetalleSF() const {
+    std::cout << "===== DETALLE DE PARTIDOS - SF =====\n";
+
+    for (const auto& partido : partidosSF) {
+        if (partido.fueJugado()) {
+            partido.imprimirDetalle(equipos);
+        }
+    }
+}
+
+void Torneo::imprimirDetalleFinalYTercerPuesto() const {
+    std::cout << "===== DETALLE DE PARTIDO - TERCER PUESTO =====\n";
+    if (partidoTercerPuesto.fueJugado()) {
+        partidoTercerPuesto.imprimirDetalle(equipos);
+    }
+
+    std::cout << "===== DETALLE DE PARTIDO - FINAL =====\n";
+    if (partidoFinal.fueJugado()) {
+        partidoFinal.imprimirDetalle(equipos);
+    }
+}
+
+void Torneo::generarReporteFinal() const {
+    std::cout << "\n=============================================\n";
+    std::cout << "         REPORTE FINAL DEL TORNEO\n";
+    std::cout << "=============================================\n";
+
     int16_t campeonId = partidoFinal.getGanadorId();
     int16_t tercerId = partidoTercerPuesto.getGanadorId();
 
@@ -831,28 +1143,19 @@ void Torneo::generarReporteFinal() const {
     }
 
     std::cout << "\n--- Ranking de los 4 primeros puestos ---\n";
-    if (campeonId >= 0) {
-        std::cout << "1. " << equipos[campeonId].getPais() << "\n";
-    }
-    if (subcampeonId >= 0) {
-        std::cout << "2. " << equipos[subcampeonId].getPais() << "\n";
-    }
-    if (tercerId >= 0) {
-        std::cout << "3. " << equipos[tercerId].getPais() << "\n";
-    }
-    if (cuartoId >= 0) {
-        std::cout << "4. " << equipos[cuartoId].getPais() << "\n";
-    }
+    if (campeonId >= 0) std::cout << "1. " << equipos[campeonId].getPais() << '\n';
+    if (subcampeonId >= 0) std::cout << "2. " << equipos[subcampeonId].getPais() << '\n';
+    if (tercerId >= 0) std::cout << "3. " << equipos[tercerId].getPais() << '\n';
+    if (cuartoId >= 0) std::cout << "4. " << equipos[cuartoId].getPais() << '\n';
 
-    // =========================================================
-    // 2. Máximo goleador del equipo campeón
-    // =========================================================
     std::cout << "\n--- Maximo goleador del equipo campeon ---\n";
+
     if (campeonId >= 0) {
         const Equipo& campeon = equipos[campeonId];
         const auto& jugadoresCampeon = campeon.getJugadores();
 
         const Jugador* goleadorCampeon = nullptr;
+
         for (const auto& jugador : jugadoresCampeon) {
             if (!goleadorCampeon || jugador.getGoles() > goleadorCampeon->getGoles()) {
                 goleadorCampeon = &jugador;
@@ -860,19 +1163,18 @@ void Torneo::generarReporteFinal() const {
         }
 
         if (goleadorCampeon) {
-            std::cout << campeon.getPais() << " -> "
-                      << goleadorCampeon->getNombre() << " "
+            std::cout << "Equipo campeon: " << campeon.getPais() << '\n';
+            std::cout << "Jugador: "
+                      << goleadorCampeon->getNombre() << ' '
                       << goleadorCampeon->getApellido()
-                      << " (Camiseta " << static_cast<int>(goleadorCampeon->getNumeroCamiseta()) << ")"
-                      << " con " << goleadorCampeon->getGoles() << " goles\n";
+                      << " | Camiseta: " << static_cast<int>(goleadorCampeon->getNumeroCamiseta())
+                      << " | Goles acumulados: " << goleadorCampeon->getGoles()
+                      << '\n';
         }
     } else {
         std::cout << "No se pudo determinar el campeon.\n";
     }
 
-    // =========================================================
-    // 3. Tres mayores goleadores de toda la copa / torneo
-    // =========================================================
     struct RegistroGoleador {
         std::string pais;
         const Jugador* jugador;
@@ -902,18 +1204,16 @@ void Torneo::generarReporteFinal() const {
     for (size_t i = 0; i < 3 && i < goleadores.size(); ++i) {
         const auto& reg = goleadores[i];
         std::cout << i + 1 << ". "
-                  << reg.jugador->getNombre() << " " << reg.jugador->getApellido()
+                  << reg.jugador->getNombre() << ' ' << reg.jugador->getApellido()
                   << " | Equipo: " << reg.pais
                   << " | Camiseta: " << static_cast<int>(reg.jugador->getNumeroCamiseta())
-                  << " | Goles: " << reg.jugador->getGoles() << "\n";
+                  << " | Goles acumulados: " << reg.jugador->getGoles()
+                  << '\n';
     }
 
-    // =========================================================
-    // 4. Equipo con más goles históricos actualizados
-    // =========================================================
     std::cout << "\n--- Equipo con mas goles historicos actualizados ---\n";
-    const Equipo* maxEquipo = nullptr;
 
+    const Equipo* maxEquipo = nullptr;
     for (const auto& e : equipos) {
         if (!maxEquipo || e.getGolesFavorHistoricos() > maxEquipo->getGolesFavorHistoricos()) {
             maxEquipo = &e;
@@ -926,10 +1226,8 @@ void Torneo::generarReporteFinal() const {
         << " goles historicos acumulados\n";
     }
 
-    // =========================================================
-    // 5. Confederación con mayor presencia en R16, R8 y R4
-    // =========================================================
-    auto contarConfederaciones = [this](const std::vector<uint8_t>& idsEquiposEtapa, const std::string& nombreEtapa) {
+    auto contarConfederaciones = [this](const std::vector<uint8_t>& idsEquiposEtapa,
+                                        const std::string& nombreEtapa) {
         int conteoUEFA = 0;
         int conteoCONMEBOL = 0;
         int conteoCONCACAF = 0;
@@ -962,7 +1260,8 @@ void Torneo::generarReporteFinal() const {
 
         std::sort(datos.begin(), datos.end(),
                   [](const auto& a, const auto& b) {
-                      return a.second > b.second;
+                      if (a.second != b.second) return a.second > b.second;
+                      return a.first < b.first;
                   });
 
         std::cout << nombreEtapa << " -> " << datos[0].first
@@ -994,6 +1293,69 @@ void Torneo::generarReporteFinal() const {
     contarConfederaciones(equiposR16, "R16");
     contarConfederaciones(equiposR8, "R8");
     contarConfederaciones(equiposR4, "R4");
+
+    std::cout << "\n=============================================\n";
+}
+
+void Torneo::guardarEquiposActualizadosCSV(const std::string& rutaArchivo) const {
+    std::ofstream archivo(rutaArchivo);
+    if (!archivo.is_open()) {
+        throw std::runtime_error("No se pudo crear el archivo de equipos actualizados: " + rutaArchivo);
+    }
+
+    archivo << "id;pais;director_tecnico;federacion;confederacion;ranking_fifa;gf_historicos;gc_historicos;pg;pe;pp;ta;tr;faltas\n";
+
+    for (const auto& equipo : equipos) {
+        archivo << static_cast<int>(equipo.getId()) << ';'
+                << equipo.getPais() << ';'
+                << equipo.getDirectorTecnico() << ';'
+                << equipo.getFederacion() << ';'
+                << Utilidades::confederacionATexto(equipo.getConfederacion()) << ';'
+                << equipo.getRankingFIFA() << ';'
+                << equipo.getGolesFavorHistoricos() << ';'
+                << equipo.getGolesContraHistoricos() << ';'
+                << equipo.getPartidosGanadosHistoricos() << ';'
+                << equipo.getPartidosEmpatadosHistoricos() << ';'
+                << equipo.getPartidosPerdidosHistoricos() << ';'
+                << equipo.getTarjetasAmarillasHistoricas() << ';'
+                << equipo.getTarjetasRojasHistoricas() << ';'
+                << equipo.getFaltasHistoricas() << '\n';
+    }
+}
+
+void Torneo::guardarJugadoresActualizadosCSV(const std::string& rutaArchivo) const {
+    std::ofstream archivo(rutaArchivo);
+    if (!archivo.is_open()) {
+        throw std::runtime_error("No se pudo crear el archivo de jugadores actualizados: " + rutaArchivo);
+    }
+
+    archivo << "equipo_id;equipo_pais;camiseta;nombre;apellido;partidos_jugados;goles;minutos_jugados;asistencias;ta;tr;faltas\n";
+
+    for (const auto& equipo : equipos) {
+        for (const auto& jugador : equipo.getJugadores()) {
+            archivo << static_cast<int>(equipo.getId()) << ';'
+                    << equipo.getPais() << ';'
+                    << static_cast<int>(jugador.getNumeroCamiseta()) << ';'
+                    << jugador.getNombre() << ';'
+                    << jugador.getApellido() << ';'
+                    << jugador.getPartidosJugados() << ';'
+                    << jugador.getGoles() << ';'
+                    << jugador.getMinutosJugados() << ';'
+                    << jugador.getAsistencias() << ';'
+                    << jugador.getTarjetasAmarillas() << ';'
+                    << jugador.getTarjetasRojas() << ';'
+                    << jugador.getFaltas() << '\n';
+        }
+    }
+}
+
+void Torneo::guardarDatosActualizados() const {
+    guardarEquiposActualizadosCSV("equipos_actualizados.csv");
+    guardarJugadoresActualizadosCSV("jugadores_actualizados.csv");
+
+    std::cout << "[PERSISTENCIA] Se generaron los archivos:\n";
+    std::cout << " - equipos_actualizados.csv\n";
+    std::cout << " - jugadores_actualizados.csv\n";
 }
 
 void Torneo::medirEstadoSistema(const std::string& nombreFase) const {
