@@ -24,11 +24,49 @@ Jugador::Jugador(uint8_t numeroCamiseta, const std::string& nombre, const std::s
     tarjetasRojas(0),
     faltas(0) {}
 
-uint8_t Jugador::getNumeroCamiseta() const { return numeroCamiseta; }
-const std::string& Jugador::getNombre() const { return nombre; }
-const std::string& Jugador::getApellido() const { return apellido; }
+uint8_t Jugador::getNumeroCamiseta() const {
+    return numeroCamiseta;
+}
 
-void Jugador::sumarGoles(uint8_t cantidad) { goles += cantidad; }
+const std::string& Jugador::getNombre() const {
+    return nombre;
+}
+
+const std::string& Jugador::getApellido() const {
+    return apellido;
+}
+
+uint16_t Jugador::getPartidosJugados() const {
+    return partidosJugados;
+}
+
+uint16_t Jugador::getGoles() const {
+    return goles;
+}
+
+uint32_t Jugador::getMinutosJugados() const {
+    return minutosJugados;
+}
+
+uint16_t Jugador::getAsistencias() const {
+    return asistencias;
+}
+
+uint16_t Jugador::getTarjetasAmarillas() const {
+    return tarjetasAmarillas;
+}
+
+uint16_t Jugador::getTarjetasRojas() const {
+    return tarjetasRojas;
+}
+
+uint16_t Jugador::getFaltas() const {
+    return faltas;
+}
+
+void Jugador::sumarGoles(uint8_t cantidad) {
+    goles += cantidad;
+}
 
 void Jugador::actualizarEstadisticas(uint8_t golesPartido,
                                      uint8_t minutosPartido,
@@ -46,4 +84,14 @@ void Jugador::actualizarEstadisticas(uint8_t golesPartido,
 }
 
 void Jugador::imprimir() const {
+    std::cout << "Camiseta: " << static_cast<int>(numeroCamiseta)
+    << " | Nombre: " << nombre << " " << apellido
+    << " | PJ: " << partidosJugados
+    << " | Goles: " << goles
+    << " | Min: " << minutosJugados
+    << " | Ast: " << asistencias
+    << " | TA: " << tarjetasAmarillas
+    << " | TR: " << tarjetasRojas
+    << " | Faltas: " << faltas
+    << '\n';
 }

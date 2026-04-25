@@ -39,11 +39,23 @@ void Partido::configurar(const Fecha& fecha,
 }
 
 double Partido::calcularGolesEsperados(const Equipo& atacante, const Equipo& rival) const {
-    constexpr double alpha = 0.4;
-    constexpr double beta = 0.6;
-    constexpr double gamma = 1.35;
+    constexpr double mu = 1.35;
+    constexpr double alpha = 0.6;
+    constexpr double beta = 0.4;
 
-    return gamma * (alpha * atacante.promedioGF() + beta * rival.promedioGC());
+    double gf = atacante.promedioGF();
+    double gc = rival.promedioGC();
+
+    // Evitar ceros exactos que colapsen la fórmula
+    if (gf <= 0.0) {
+        gf = 0.01;
+    }
+
+    if (gc <= 0.0) {
+        gc = 0.01;
+    }
+
+    return mu * std::pow(gf / mu, alpha) * std::pow(gc / mu, beta);
 }
 
 uint8_t Partido::convertirAGolesReales(double lambda, std::mt19937& gen) const {

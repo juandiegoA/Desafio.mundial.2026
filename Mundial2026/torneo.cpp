@@ -808,8 +808,110 @@ void Torneo::simularFinalYTercerPuesto() {
 }
 
 void Torneo::generarReporteFinal() const {
-    std::cout << "===== REPORTE FINAL =====\n";
+    std::cout << "===== REPORTE FINAL DEL TORNEO =====\n";
 
+    // =========================================================
+    // 1. Ranking de los 4 primeros puestos
+    // =========================================================
+    int16_t campeonId = partidoFinal.getGanadorId();
+    int16_t tercerId = partidoTercerPuesto.getGanadorId();
+
+    int16_t subcampeonId = -1;
+    if (campeonId >= 0) {
+        subcampeonId = (partidoFinal.getEquipo1Id() == campeonId)
+        ? partidoFinal.getEquipo2Id()
+        : partidoFinal.getEquipo1Id();
+    }
+
+    int16_t cuartoId = -1;
+    if (tercerId >= 0) {
+        cuartoId = (partidoTercerPuesto.getEquipo1Id() == tercerId)
+        ? partidoTercerPuesto.getEquipo2Id()
+        : partidoTercerPuesto.getEquipo1Id();
+    }
+
+    std::cout << "\n--- Ranking de los 4 primeros puestos ---\n";
+    if (campeonId >= 0) {
+        std::cout << "1. " << equipos[campeonId].getPais() << "\n";
+    }
+    if (subcampeonId >= 0) {
+        std::cout << "2. " << equipos[subcampeonId].getPais() << "\n";
+    }
+    if (tercerId >= 0) {
+        std::cout << "3. " << equipos[tercerId].getPais() << "\n";
+    }
+    if (cuartoId >= 0) {
+        std::cout << "4. " << equipos[cuartoId].getPais() << "\n";
+    }
+
+    // =========================================================
+    // 2. Máximo goleador del equipo campeón
+    // =========================================================
+    std::cout << "\n--- Maximo goleador del equipo campeon ---\n";
+    if (campeonId >= 0) {
+        const Equipo& campeon = equipos[campeonId];
+        const auto& jugadoresCampeon = campeon.getJugadores();
+
+        const Jugador* goleadorCampeon = nullptr;
+        for (const auto& jugador : jugadoresCampeon) {
+            if (!goleadorCampeon || jugador.getGoles() > goleadorCampeon->getGoles()) {
+                goleadorCampeon = &jugador;
+            }
+        }
+
+        if (goleadorCampeon) {
+            std::cout << campeon.getPais() << " -> "
+                      << goleadorCampeon->getNombre() << " "
+                      << goleadorCampeon->getApellido()
+                      << " (Camiseta " << static_cast<int>(goleadorCampeon->getNumeroCamiseta()) << ")"
+                      << " con " << goleadorCampeon->getGoles() << " goles\n";
+        }
+    } else {
+        std::cout << "No se pudo determinar el campeon.\n";
+    }
+
+    // =========================================================
+    // 3. Tres mayores goleadores de toda la copa / torneo
+    // =========================================================
+    struct RegistroGoleador {
+        std::string pais;
+        const Jugador* jugador;
+    };
+
+    std::vector<RegistroGoleador> goleadores;
+    goleadores.reserve(equipos.size() * 26);
+
+    for (const auto& equipo : equipos) {
+        for (const auto& jugador : equipo.getJugadores()) {
+            goleadores.push_back({equipo.getPais(), &jugador});
+        }
+    }
+
+    std::sort(goleadores.begin(), goleadores.end(),
+              [](const RegistroGoleador& a, const RegistroGoleador& b) {
+                  if (a.jugador->getGoles() != b.jugador->getGoles()) {
+                      return a.jugador->getGoles() > b.jugador->getGoles();
+                  }
+                  if (a.pais != b.pais) {
+                      return a.pais < b.pais;
+                  }
+                  return a.jugador->getNumeroCamiseta() < b.jugador->getNumeroCamiseta();
+              });
+
+    std::cout << "\n--- Tres mayores goleadores del torneo ---\n";
+    for (size_t i = 0; i < 3 && i < goleadores.size(); ++i) {
+        const auto& reg = goleadores[i];
+        std::cout << i + 1 << ". "
+                  << reg.jugador->getNombre() << " " << reg.jugador->getApellido()
+                  << " | Equipo: " << reg.pais
+                  << " | Camiseta: " << static_cast<int>(reg.jugador->getNumeroCamiseta())
+                  << " | Goles: " << reg.jugador->getGoles() << "\n";
+    }
+
+    // =========================================================
+    // 4. Equipo con más goles históricos actualizados
+    // =========================================================
+    std::cout << "\n--- Equipo con mas goles historicos actualizados ---\n";
     const Equipo* maxEquipo = nullptr;
 
     for (const auto& e : equipos) {
@@ -819,10 +921,79 @@ void Torneo::generarReporteFinal() const {
     }
 
     if (maxEquipo) {
-        std::cout << "Equipo con mas goles historicos: "
-                  << maxEquipo->getPais()
-                  << " (" << maxEquipo->getGolesFavorHistoricos() << ")\n";
+        std::cout << maxEquipo->getPais()
+        << " con " << maxEquipo->getGolesFavorHistoricos()
+        << " goles historicos acumulados\n";
     }
+
+    // =========================================================
+    // 5. Confederación con mayor presencia en R16, R8 y R4
+    // =========================================================
+    auto contarConfederaciones = [this](const std::vector<uint8_t>& idsEquiposEtapa, const std::string& nombreEtapa) {
+        int conteoUEFA = 0;
+        int conteoCONMEBOL = 0;
+        int conteoCONCACAF = 0;
+        int conteoCAF = 0;
+        int conteoAFC = 0;
+        int conteoOFC = 0;
+        int conteoDESCONOCIDA = 0;
+
+        for (uint8_t id : idsEquiposEtapa) {
+            switch (equipos[id].getConfederacion()) {
+            case Confederacion::UEFA: ++conteoUEFA; break;
+            case Confederacion::CONMEBOL: ++conteoCONMEBOL; break;
+            case Confederacion::CONCACAF: ++conteoCONCACAF; break;
+            case Confederacion::CAF: ++conteoCAF; break;
+            case Confederacion::AFC: ++conteoAFC; break;
+            case Confederacion::OFC: ++conteoOFC; break;
+            default: ++conteoDESCONOCIDA; break;
+            }
+        }
+
+        std::vector<std::pair<std::string, int>> datos = {
+            {"UEFA", conteoUEFA},
+            {"CONMEBOL", conteoCONMEBOL},
+            {"CONCACAF", conteoCONCACAF},
+            {"CAF", conteoCAF},
+            {"AFC", conteoAFC},
+            {"OFC", conteoOFC},
+            {"DESCONOCIDA", conteoDESCONOCIDA}
+        };
+
+        std::sort(datos.begin(), datos.end(),
+                  [](const auto& a, const auto& b) {
+                      return a.second > b.second;
+                  });
+
+        std::cout << nombreEtapa << " -> " << datos[0].first
+                  << " con " << datos[0].second << " equipos\n";
+    };
+
+    std::vector<uint8_t> equiposR16;
+    equiposR16.reserve(32);
+    for (const auto& p : partidosR16) {
+        equiposR16.push_back(p.getEquipo1Id());
+        equiposR16.push_back(p.getEquipo2Id());
+    }
+
+    std::vector<uint8_t> equiposR8;
+    equiposR8.reserve(16);
+    for (const auto& p : partidosR8) {
+        equiposR8.push_back(p.getEquipo1Id());
+        equiposR8.push_back(p.getEquipo2Id());
+    }
+
+    std::vector<uint8_t> equiposR4;
+    equiposR4.reserve(4);
+    for (const auto& p : partidosSF) {
+        equiposR4.push_back(p.getEquipo1Id());
+        equiposR4.push_back(p.getEquipo2Id());
+    }
+
+    std::cout << "\n--- Confederacion con mayor presencia ---\n";
+    contarConfederaciones(equiposR16, "R16");
+    contarConfederaciones(equiposR8, "R8");
+    contarConfederaciones(equiposR4, "R4");
 }
 
 void Torneo::medirEstadoSistema(const std::string& nombreFase) const {
