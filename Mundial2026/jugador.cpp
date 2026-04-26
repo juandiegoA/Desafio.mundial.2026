@@ -1,4 +1,4 @@
-#include "Jugador.h"
+#include "jugador.h"
 
 Jugador::Jugador()
     : numeroCamiseta(0),
@@ -10,7 +10,14 @@ Jugador::Jugador()
     asistencias(0),
     tarjetasAmarillas(0),
     tarjetasRojas(0),
-    faltas(0) {}
+    faltas(0),
+    partidosCopaActual(0),
+    golesCopaActual(0),
+    minutosCopaActual(0),
+    asistenciasCopaActual(0),
+    tarjetasAmarillasCopaActual(0),
+    tarjetasRojasCopaActual(0),
+    faltasCopaActual(0) {}
 
 Jugador::Jugador(uint8_t numeroCamiseta, const std::string& nombre, const std::string& apellido)
     : numeroCamiseta(numeroCamiseta),
@@ -22,7 +29,14 @@ Jugador::Jugador(uint8_t numeroCamiseta, const std::string& nombre, const std::s
     asistencias(0),
     tarjetasAmarillas(0),
     tarjetasRojas(0),
-    faltas(0) {}
+    faltas(0),
+    partidosCopaActual(0),
+    golesCopaActual(0),
+    minutosCopaActual(0),
+    asistenciasCopaActual(0),
+    tarjetasAmarillasCopaActual(0),
+    tarjetasRojasCopaActual(0),
+    faltasCopaActual(0) {}
 
 uint8_t Jugador::getNumeroCamiseta() const {
     return numeroCamiseta;
@@ -64,8 +78,37 @@ uint16_t Jugador::getFaltas() const {
     return faltas;
 }
 
+uint16_t Jugador::getPartidosCopaActual() const {
+    return partidosCopaActual;
+}
+
+uint16_t Jugador::getGolesCopaActual() const {
+    return golesCopaActual;
+}
+
+uint32_t Jugador::getMinutosCopaActual() const {
+    return minutosCopaActual;
+}
+
+uint16_t Jugador::getAsistenciasCopaActual() const {
+    return asistenciasCopaActual;
+}
+
+uint16_t Jugador::getTarjetasAmarillasCopaActual() const {
+    return tarjetasAmarillasCopaActual;
+}
+
+uint16_t Jugador::getTarjetasRojasCopaActual() const {
+    return tarjetasRojasCopaActual;
+}
+
+uint16_t Jugador::getFaltasCopaActual() const {
+    return faltasCopaActual;
+}
+
 void Jugador::sumarGoles(uint8_t cantidad) {
     goles += cantidad;
+    golesCopaActual += cantidad;
 }
 
 void Jugador::actualizarEstadisticas(uint8_t golesPartido,
@@ -74,24 +117,37 @@ void Jugador::actualizarEstadisticas(uint8_t golesPartido,
                                      uint8_t rojasPartido,
                                      uint8_t faltasPartido,
                                      uint8_t asistenciasPartido) {
-    partidosJugados += 1;
+    // Historico total
+    ++partidosJugados;
     goles += golesPartido;
     minutosJugados += minutosPartido;
+    asistencias += asistenciasPartido;
     tarjetasAmarillas += amarillasPartido;
     tarjetasRojas += rojasPartido;
     faltas += faltasPartido;
-    asistencias += asistenciasPartido;
+
+    // Copa actual
+    ++partidosCopaActual;
+    golesCopaActual += golesPartido;
+    minutosCopaActual += minutosPartido;
+    asistenciasCopaActual += asistenciasPartido;
+    tarjetasAmarillasCopaActual += amarillasPartido;
+    tarjetasRojasCopaActual += rojasPartido;
+    faltasCopaActual += faltasPartido;
 }
 
 void Jugador::imprimir() const {
-    std::cout << "Camiseta: " << static_cast<int>(numeroCamiseta)
-    << " | Nombre: " << nombre << " " << apellido
-    << " | PJ: " << partidosJugados
-    << " | Goles: " << goles
-    << " | Min: " << minutosJugados
-    << " | Ast: " << asistencias
-    << " | TA: " << tarjetasAmarillas
-    << " | TR: " << tarjetasRojas
-    << " | Faltas: " << faltas
-    << '\n';
+    std::cout << *this << '\n';
+}
+
+std::ostream& operator<<(std::ostream& os, const Jugador& jugador) {
+    os << "Camiseta: " << static_cast<int>(jugador.getNumeroCamiseta())
+    << " | Nombre: " << jugador.getNombre() << ' ' << jugador.getApellido()
+    << " | PJ historicos: " << jugador.getPartidosJugados()
+    << " | Goles historicos: " << jugador.getGoles()
+    << " | Min historicos: " << jugador.getMinutosJugados()
+    << " | Goles copa actual: " << jugador.getGolesCopaActual()
+    << " | Min copa actual: " << jugador.getMinutosCopaActual();
+
+    return os;
 }

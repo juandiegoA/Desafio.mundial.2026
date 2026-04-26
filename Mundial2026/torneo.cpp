@@ -1148,7 +1148,7 @@ void Torneo::generarReporteFinal() const {
     if (tercerId >= 0) std::cout << "3. " << equipos[tercerId].getPais() << '\n';
     if (cuartoId >= 0) std::cout << "4. " << equipos[cuartoId].getPais() << '\n';
 
-    std::cout << "\n--- Maximo goleador del equipo campeon ---\n";
+    std::cout << "\n--- Maximo goleador del equipo campeon en esta copa ---\n";
 
     if (campeonId >= 0) {
         const Equipo& campeon = equipos[campeonId];
@@ -1157,7 +1157,7 @@ void Torneo::generarReporteFinal() const {
         const Jugador* goleadorCampeon = nullptr;
 
         for (const auto& jugador : jugadoresCampeon) {
-            if (!goleadorCampeon || jugador.getGoles() > goleadorCampeon->getGoles()) {
+            if (!goleadorCampeon || jugador.getGolesCopaActual() > goleadorCampeon->getGolesCopaActual()) {
                 goleadorCampeon = &jugador;
             }
         }
@@ -1168,7 +1168,7 @@ void Torneo::generarReporteFinal() const {
                       << goleadorCampeon->getNombre() << ' '
                       << goleadorCampeon->getApellido()
                       << " | Camiseta: " << static_cast<int>(goleadorCampeon->getNumeroCamiseta())
-                      << " | Goles acumulados: " << goleadorCampeon->getGoles()
+                      << " | Goles en esta copa: " << goleadorCampeon->getGolesCopaActual()
                       << '\n';
         }
     } else {
@@ -1191,8 +1191,8 @@ void Torneo::generarReporteFinal() const {
 
     std::sort(goleadores.begin(), goleadores.end(),
               [](const RegistroGoleador& a, const RegistroGoleador& b) {
-                  if (a.jugador->getGoles() != b.jugador->getGoles()) {
-                      return a.jugador->getGoles() > b.jugador->getGoles();
+                  if (a.jugador->getGolesCopaActual() != b.jugador->getGolesCopaActual()) {
+                      return a.jugador->getGolesCopaActual() > b.jugador->getGolesCopaActual();
                   }
                   if (a.pais != b.pais) {
                       return a.pais < b.pais;
@@ -1200,14 +1200,14 @@ void Torneo::generarReporteFinal() const {
                   return a.jugador->getNumeroCamiseta() < b.jugador->getNumeroCamiseta();
               });
 
-    std::cout << "\n--- Tres mayores goleadores del torneo ---\n";
+    std::cout << "\n--- Tres mayores goleadores de esta copa ---\n";
     for (size_t i = 0; i < 3 && i < goleadores.size(); ++i) {
         const auto& reg = goleadores[i];
         std::cout << i + 1 << ". "
                   << reg.jugador->getNombre() << ' ' << reg.jugador->getApellido()
                   << " | Equipo: " << reg.pais
                   << " | Camiseta: " << static_cast<int>(reg.jugador->getNumeroCamiseta())
-                  << " | Goles acumulados: " << reg.jugador->getGoles()
+                  << " | Goles en esta copa: " << reg.jugador->getGolesCopaActual()
                   << '\n';
     }
 
@@ -1329,7 +1329,9 @@ void Torneo::guardarJugadoresActualizadosCSV(const std::string& rutaArchivo) con
         throw std::runtime_error("No se pudo crear el archivo de jugadores actualizados: " + rutaArchivo);
     }
 
-    archivo << "equipo_id;equipo_pais;camiseta;nombre;apellido;partidos_jugados;goles;minutos_jugados;asistencias;ta;tr;faltas\n";
+    archivo << "equipo_id;equipo_pais;camiseta;nombre;apellido;"
+            << "partidos_historicos;goles_historicos;minutos_historicos;asistencias_historicas;ta_historicas;tr_historicas;faltas_historicas;"
+            << "partidos_copa_actual;goles_copa_actual;minutos_copa_actual;asistencias_copa_actual;ta_copa_actual;tr_copa_actual;faltas_copa_actual\n";
 
     for (const auto& equipo : equipos) {
         for (const auto& jugador : equipo.getJugadores()) {
@@ -1344,7 +1346,14 @@ void Torneo::guardarJugadoresActualizadosCSV(const std::string& rutaArchivo) con
                     << jugador.getAsistencias() << ';'
                     << jugador.getTarjetasAmarillas() << ';'
                     << jugador.getTarjetasRojas() << ';'
-                    << jugador.getFaltas() << '\n';
+                    << jugador.getFaltas() << ';'
+                    << jugador.getPartidosCopaActual() << ';'
+                    << jugador.getGolesCopaActual() << ';'
+                    << jugador.getMinutosCopaActual() << ';'
+                    << jugador.getAsistenciasCopaActual() << ';'
+                    << jugador.getTarjetasAmarillasCopaActual() << ';'
+                    << jugador.getTarjetasRojasCopaActual() << ';'
+                    << jugador.getFaltasCopaActual() << '\n';
         }
     }
 }

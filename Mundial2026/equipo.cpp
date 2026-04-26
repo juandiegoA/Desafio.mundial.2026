@@ -151,7 +151,6 @@ void Equipo::actualizarEstadisticas(uint8_t golesFavorPartido,
                                     uint8_t faltasPartido) {
     golesFavorHistoricos += golesFavorPartido;
     golesContraHistoricos += golesContraPartido;
-
     tarjetasAmarillasHistoricas += tarjetasAmarillasPartido;
     tarjetasRojasHistoricas += tarjetasRojasPartido;
     faltasHistoricas += faltasPartido;
@@ -165,29 +164,15 @@ void Equipo::actualizarEstadisticas(uint8_t golesFavorPartido,
     }
 }
 
-void Equipo::imprimirResumen() const {
-    std::cout << "ID: " << static_cast<int>(id)
-    << " | Pais: " << pais
-    << " | DT: " << directorTecnico
-    << " | Ranking FIFA: " << rankingFIFA
-    << " | GF: " << golesFavorHistoricos
-    << " | GC: " << golesContraHistoricos
-    << " | PG: " << partidosGanadosHistoricos
-    << " | PE: " << partidosEmpatadosHistoricos
-    << " | PP: " << partidosPerdidosHistoricos
-    << " | TA: " << tarjetasAmarillasHistoricas
-    << " | TR: " << tarjetasRojasHistoricas
-    << " | Faltas: " << faltasHistoricas
-    << '\n';
-}
-
 std::array<uint8_t, 11> Equipo::seleccionarTitulares(std::mt19937& gen) const {
     (void)gen;
 
     std::array<uint8_t, 11> titulares{};
+
     for (uint8_t i = 0; i < 11; ++i) {
         titulares[i] = i;
     }
+
     return titulares;
 }
 
@@ -234,4 +219,27 @@ void Equipo::actualizarJugadoresConvocados(
             est.asistencias
             );
     }
+}
+
+void Equipo::imprimirResumen() const {
+    std::cout << *this
+              << " | TA historicas: " << tarjetasAmarillasHistoricas
+              << " | TR historicas: " << tarjetasRojasHistoricas
+              << " | Faltas historicas: " << faltasHistoricas
+              << '\n';
+}
+
+std::ostream& operator<<(std::ostream& os, const Equipo& equipo) {
+    os << "ID: " << static_cast<int>(equipo.getId())
+    << " | Pais: " << equipo.getPais()
+    << " | DT: " << equipo.getDirectorTecnico()
+    << " | Federacion: " << equipo.getFederacion()
+    << " | Ranking FIFA: " << equipo.getRankingFIFA()
+    << " | GF historicos: " << equipo.getGolesFavorHistoricos()
+    << " | GC historicos: " << equipo.getGolesContraHistoricos()
+    << " | PG: " << equipo.getPartidosGanadosHistoricos()
+    << " | PE: " << equipo.getPartidosEmpatadosHistoricos()
+    << " | PP: " << equipo.getPartidosPerdidosHistoricos();
+
+    return os;
 }

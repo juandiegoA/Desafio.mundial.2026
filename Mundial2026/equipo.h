@@ -2,6 +2,8 @@
 #define EQUIPO_H
 
 #include <array>
+#include <cstdint>
+#include <ostream>
 #include <random>
 #include <string>
 
@@ -42,6 +44,10 @@ public:
            uint16_t partidosGanadosHistoricos,
            uint16_t partidosEmpatadosHistoricos,
            uint16_t partidosPerdidosHistoricos);
+
+    // Constructor de copia y operador de asignacion.
+    Equipo(const Equipo& otro) = default;
+    Equipo& operator=(const Equipo& otro) = default;
 
     uint8_t getId() const;
     const std::string& getPais() const;
@@ -89,5 +95,7 @@ public:
 
     void imprimirResumen() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const Equipo& equipo);
 
 #endif
